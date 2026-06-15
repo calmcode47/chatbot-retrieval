@@ -1,0 +1,17 @@
+[
+  {
+    "question": "How many days can employees work remotely?",
+    "ground_truth": "Employees at DocuMind are allowed to work remotely up to 3 days per week.",
+    "source_doc": "sample_policy.txt"
+  },
+  {
+    "question": "When is office lunch served?",
+    "ground_truth": "A catered lunch is served daily in the main cafeteria at 12:30 PM.",
+    "source_doc": "sample_policy.txt"
+  },
+  {
+    "question": "What is the equipment stipend amount for new hires?",
+    "ground_truth": "Every new hire receives a one-time equipment stipend of $1,500.",
+    "source_doc": "sample_policy.txt"
+  }
+]

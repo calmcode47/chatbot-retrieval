@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+conda/
+
+# DocuMind local databases and models
+data/chroma_db/
+models/
+data/raw/*
+!data/raw/.gitkeep
+evaluation/ragas_results.json
+
+# OS files
+.DS_Store

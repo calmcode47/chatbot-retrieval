@@ -1,0 +1,59 @@
+# configs/config.yaml — Phase 12 complete
+
+app:
+  name: "DocuMind"
+  version: "1.2.0"
+  debug: true
+
+embedding:
+  model_name: "BAAI/bge-base-en-v1.5"
+  device: "mps"
+  batch_size: 32
+  cache_dir: "./models"
+
+chunking:
+  chunk_size: 512
+  chunk_overlap: 64
+  separators: ["\n\n", "\n", ". ", " ", ""]
+
+vector_store:
+  provider: "chromadb"
+  persist_directory: "./data/chroma_db"
+  collection_name: "documind_store"
+  distance_metric: "cosine"
+
+retrieval:
+  top_k: 5
+  score_threshold: 0.3
+  rerank: true
+  reranker_model: "BAAI/bge-reranker-base"
+  reranker_candidates: 20       # Fetch 20, rerank to top_k
+
+llm:
+  provider: "ollama"
+  model: "llama3.2:3b"
+  base_url: "http://localhost:11434"
+  temperature: 0.1
+  top_p: 0.9
+  max_tokens: 1024
+  streaming: true
+  warmup_on_start: true         # NEW: pre-warm model on API startup
+
+conversation:
+  max_history_turns: 5          # NEW: rolling window for multi-turn
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+
+ui:
+  port: 8501
+
+evaluation:
+  dataset_path: "./evaluation/eval_dataset.json"
+  results_path: "./evaluation/ragas_results.json"
+  target_faithfulness: 0.80
+  target_answer_relevancy: 0.80
+  target_context_precision: 0.70
+  target_context_recall: 0.70
