@@ -1,14 +1,18 @@
 # DocuMind: Local RAG Q&A System
-## Project Status Report — June 16, 2026
+## Project Status Report — June 18, 2026
 
 DocuMind is a 100% private, local Retrieval-Augmented Generation (RAG) system designed to perform secure document question-answering. It uses Apple Silicon GPU-acceleration (MPS) for embedding generation, ChromaDB for persistent vector search, and Ollama to host LLMs locally.
 
 ---
 
 ## 1. Executive Summary
-As of today, the core system architecture is **fully implemented, integrated, and verified**. End-to-end functionality has been demonstrated through document ingestion, persistent vector storage, context-based prompting, local LLM generation, and a fully functional UI. 
+As of today, the system has progressed to **Phase 13**, introducing advanced RAG techniques and structured, local evaluation. We have successfully implemented:
+- **Hybrid Retrieval (BM25 + Dense Search)** with Reciprocal Rank Fusion (RRF).
+- **Parent-Document Retrieval** featuring hierarchical chunking (512-token parent chunks / 128-token child chunks).
+- **Local RAGAS Evaluation Runner** utilizing a synthetically generated grounded evaluation dataset.
+- The pipeline remains completely secure, private, and runs fully locally on Apple Silicon (`mps` for HuggingFace embeddings/rerankers and `Ollama` for local model hosting).
 
-All runner tasks (API deployment, Streamlit UI, ingestion CLI, and unit testing) have been centralized in the `Makefile` with environment-agnostic module resolution (`PYTHONPATH`).
+All runner tasks have been centralized and verified to compile and run successfully within the `chatbot-retrieval` Conda environment.
 
 ---
 
@@ -22,15 +26,23 @@ graph TD
     
     subgraph Ingestion Pipeline
         LD[Loaders: PDF/TXT/MD]
-        CK[Chunker: Recursive Splitter]
+        subgraph Hierarchical Chunking
+            PCK[Parent Chunker: 512-Token Parent Chunks]
+            CCK[Child Chunker: 128-Token Child Chunks]
+        end
         EMB[Embedder: BGE-Base-en-v1.5]
     end
     
-    subgraph Storage
+    subgraph Storage & Indexing
         VS[(ChromaDB Vector Store)]
+        BM25[BM25 Index - Sparse Search]
     end
     
     subgraph Retrieval & Generation
+        HR[Hybrid Retriever: Dense + BM25]
+        RRF[Reciprocal Rank Fusion - RRF]
+        PR[Parent Retriever: Fetch parent text by child ID]
+        CR[Cross-Encoder Reranker: BGE-Reranker-Base]
         CB[Context Builder]
         OLL[Ollama: Llama-3.2-3b]
     end
@@ -38,11 +50,17 @@ graph TD
     User -->|Upload / Chat| UI
     UI -->|REST API Calls| API
     API -->|Raw Doc| LD
-    LD --> CK --> EMB -->|Vectors & Meta| VS
+    LD --> Hierarchical
+    PCK --> CCK --> EMB -->|Vectors & Meta| VS
+    CCK -->|Rebuild Sparse Index| BM25
     
-    API -->|Query| EMB
-    EMB -->|Query Vector| VS
-    VS -->|Relevant Chunks| CB
+    API -->|Query| HR
+    HR -->|Dense Search| VS
+    HR -->|Sparse Search| BM25
+    VS & BM25 -->|Retrieve Candidates| RRF
+    RRF -->|Ranked Child Chunks| PR
+    PR -->|Fetch Parent Context| CR
+    CR -->|Re-scored Parent Context| CB
     CB -->|Context String| OLL
     OLL -->|Factual Answer| API
     API -->|Response + Sources| UI
@@ -55,14 +73,15 @@ graph TD
 | Component | Target File | Status | Description |
 | :--- | :--- | :--- | :--- |
 | **Environment** | `requirements.txt`, `requirements-dev.txt` | **Completed** | Full PyTorch, sentence-transformers, LangChain 0.2+, FastAPI, and Streamlit stack configured under Conda. |
-| **Configuration** | `configs/config.yaml`, `.env` | **Completed** | Centralized parameter config (chunk sizes, device mapping, model paths). |
 | **Embeddings** | [ingestion/embedder.py](file:///Users/mayank/chatbot-retrieval/ingestion/embedder.py) | **Completed** | BAAI/bge-base-en-v1.5 wrapper with automatic Apple Silicon (MPS) GPU detection. |
 | **Vector Store** | [retrieval/vector_store.py](file:///Users/mayank/chatbot-retrieval/retrieval/vector_store.py) | **Completed** | Wrapped ChromaDB client persisting data to `./data/chroma_db` using cosine distance. |
-| **Ingestion Pipeline**| [ingestion/loaders.py](file:///Users/mayank/chatbot-retrieval/ingestion/loaders.py), [ingestion/chunker.py](file:///Users/mayank/chatbot-retrieval/ingestion/chunker.py) | **Completed** | Handles PyMuPDF loading, web scraping, and LangChain recursive paragraph/sentence chunking. |
-| **RAG Orchestrator** | [pipeline/rag_chain.py](file:///Users/mayank/chatbot-retrieval/pipeline/rag_chain.py) | **Completed** | End-to-end controller binding retrieval steps to Ollama query execution (both single-run & token-streaming). |
-| **FastAPI Backend** | [api/main.py](file:///Users/mayank/chatbot-retrieval/api/main.py) | **Completed** | Exposes upload/ingestion, chat, document deletion, and system health endpoints. |
-| **Streamlit Interface**| [ui/app.py](file:///Users/mayank/chatbot-retrieval/ui/app.py) | **Completed** | User dashboard supporting document upload, document management, and chat stream rendering. |
-| **Test Suite** | [tests/test_retrieval.py](file:///Users/mayank/chatbot-retrieval/tests/test_retrieval.py) | **Completed** | Pytest unit tests for dimensions, unit normalization, storage search, and context building. |
+| **Hybrid Retrieval** | [retrieval/hybrid_retriever.py](file:///Users/mayank/chatbot-retrieval/retrieval/hybrid_retriever.py) | **Completed** | Combines sparse (BM25Okapi) and dense (ChromaDB) retrieval using Reciprocal Rank Fusion (RRF, $k=60$) for improved keyword matching. |
+| **Parent-Document Retrieval**| [ingestion/parent_chunker.py](file:///Users/mayank/chatbot-retrieval/ingestion/parent_chunker.py), [retrieval/parent_retriever.py](file:///Users/mayank/chatbot-retrieval/retrieval/parent_retriever.py) | **Completed** | Splits documents into 512-token parents and 128-token children. Retrieval matches the precise child chunks but returns the larger parent context to the LLM. |
+| **Cross-Encoder Reranker** | [retrieval/reranker.py](file:///Users/mayank/chatbot-retrieval/retrieval/reranker.py) | **Completed** | Integrates `BAAI/bge-reranker-base` to re-score candidate chunks for increased context accuracy. |
+| **Orchestrator** | [pipeline/conversational_chain.py](file:///Users/mayank/chatbot-retrieval/pipeline/conversational_chain.py) | **Completed** | Stateful multi-turn conversation memory, automatically condensing follow-up queries, with configurable Hybrid Retriever routing. |
+| **FastAPI Backend** | [api/main.py](file:///Users/mayank/chatbot-retrieval/api/main.py) | **Completed** | Exposes ingest, delete, health, and chat endpoints. Rebuilds the BM25 index after ingestion. Features Ollama pre-warming to avoid cold starts. |
+| **RAGAS Evaluation** | [evaluation/ragas_eval.py](file:///Users/mayank/chatbot-retrieval/evaluation/ragas_eval.py), [scripts/generate_eval_dataset.py](file:///Users/mayank/chatbot-retrieval/scripts/generate_eval_dataset.py) | **Completed** | Generates a synthetic evaluation set and runs evaluation metrics (Faithfulness, Answer Relevancy, Context Precision, and Context Recall) locally with Ollama and HF Embeddings. |
+| **Test Suite** | [tests/test_retrieval.py](file:///Users/mayank/chatbot-retrieval/tests/test_retrieval.py) | **Completed** | Unit tests for storage, embedding normalization, context building, reranking, and conversational query condensation. |
 
 ---
 
@@ -70,26 +89,42 @@ graph TD
 
 ### A. Core Pipeline Verification
 * **Test Document**: [data/raw/sample_policy.txt](file:///Users/mayank/chatbot-retrieval/data/raw/sample_policy.txt)
-* **Ingestion Action**: Document successfully loaded, chunked, and stored (yielding **2 persistent chunks** in ChromaDB).
-* **RAG Chat Response**:
-  * **Status**: Successful.
-  * **Performance**: First-run query executed in **11,336ms** (which includes loading the `llama3.2:3b` model weights into system memory).
-  * **Result**: Generated answers strictly grounded in context, referencing sources and showing metadata citations inside the Streamlit UI.
+* **Ingestion Action**: Supports both flat chunking and parent-document hierarchical chunking. Rebuilds BM25 indexes dynamically.
+* **RAG Chat Response**: Successful, grounded answers referencing exact sources with parent-level context.
 
-### B. Bug Resolutions
-1. **Conda Configuration**: Updated `~/.zshrc` to point to `/opt/miniconda3` rather than `/Users/mayank/miniconda3`.
-2. **LangChain 0.2+ Import Migration**: Patched chunking module to import `RecursiveCharacterTextSplitter` from `langchain_text_splitters`.
-3. **Module Resolution**: Configured all runner actions in the [Makefile](file:///Users/mayank/chatbot-retrieval/Makefile) with `PYTHONPATH=.` to prevent `ModuleNotFoundError` during standard CLI execution.
+### B. Unit & Integration Testing
+All 7 unit tests pass successfully:
+```bash
+$ PYTHONPATH=. /opt/miniconda3/envs/chatbot-retrieval/bin/python -m pytest tests/ -v
+tests/test_retrieval.py::test_embedding_dimension PASSED                 [ 14%]
+tests/test_retrieval.py::test_embedding_normalized PASSED                [ 28%]
+tests/test_retrieval.py::test_vector_store_add_and_search PASSED         [ 42%]
+tests/test_retrieval.py::test_context_builder PASSED                     [ 57%]
+tests/test_retrieval.py::test_context_builder_empty PASSED               [ 71%]
+tests/test_retrieval.py::test_reranker PASSED                            [ 85%]
+tests/test_retrieval.py::test_conversational_chain_condense PASSED       [100%]
+```
+
+### C. Automated RAGAS Evaluation
+The local evaluation suite executed successfully over 5 synthetic evaluation Q&As. A summary of computed scores is shown below:
+* **Questions Evaluated**: 5
+* **LLM Judge**: `llama3.2:3b`
+* **Embedding Judge**: `BAAI/bge-base-en-v1.5` (running on `mps`)
+* **Results**:
+  * **Context Recall**: `0.7500` (GOOD - above target `0.70`)
+  * **Faithfulness**: `0.0000` (Timed out on local 3B model)
+  * **Answer Relevancy**: `0.0000` (Timed out on local 3B model)
+  * **Context Precision**: `0.0000` (Timed out on local 3B model)
+
+> [!NOTE]
+> The RAGAS evaluation runner is configured to timeout stuck LLM evaluation queries after 30 seconds and handles exceptions gracefully to ensure local execution runs in a reasonable time.
 
 ---
 
-## 5. Next Steps & Phase 12 Roadmap
-1. **Latency Optimization**:
-   * Pre-load Ollama models on system startup to reduce the first-query cold-start latency.
-   * Fine-tune the chunk sizes and `top_k` retrieval parameters for optimal token consumption.
-2. **Cross-Encoder Re-ranking (Phase 12)**:
-   * Introduce a lightweight cross-encoder (e.g., `BAAI/bge-reranker-base`) to re-score retrieved chunks before prompting the LLM, increasing factual correctness.
-3. **Multi-Turn Chat History**:
-   * Wire the `CONDENSE_QUESTION_PROMPT` to condense follow-up queries with previous chat contexts before sending them to the retriever.
-4. **Automated Ragas Evaluation**:
-   * Implement automated tests to log Faithfulness, Answer Relevance, and Context Recall metrics.
+## 5. Next Steps & Phase 14 Roadmap
+1. **Production Containerization**:
+   * Build multi-stage Dockerfiles for the FastAPI backend and Streamlit UI for container deployment.
+2. **Model Upgrades for RAGAS Evaluation**:
+   * Test evaluation with slightly larger instruction-following models (e.g., `mistral:7b`) to improve judge reliability and avoid timeout limits.
+3. **Advanced Parent Retriever Configs**:
+   * Expose chunk sizes dynamically in configuration files (`configs/config.yaml`).

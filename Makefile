@@ -21,6 +21,9 @@ ingest-file:
 eval:
 	PYTHONPATH=. python evaluation/ragas_eval.py
 
+generate-eval:
+	PYTHONPATH=. python scripts/generate_eval_dataset.py
+
 benchmark:
 	PYTHONPATH=. python scripts/benchmark_retrieval.py
 

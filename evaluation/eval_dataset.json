@@ -1,17 +1,27 @@
 [
   {
-    "question": "How many days can employees work remotely?",
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "Every new hire receives a one-time equipment stipend of $1,500.",
+    "source_doc": "sample_policy.txt"
+  },
+  {
+    "question": "Which days of the week are designated as core in-office days for local employees?",
+    "ground_truth": "Tuesdays and Thursdays are designated as core in-office days.",
+    "source_doc": "sample_policy.txt"
+  },
+  {
+    "question": "How many days per week are employees allowed to work remotely?",
     "ground_truth": "Employees at DocuMind are allowed to work remotely up to 3 days per week.",
     "source_doc": "sample_policy.txt"
   },
   {
-    "question": "When is office lunch served?",
-    "ground_truth": "A catered lunch is served daily in the main cafeteria at 12:30 PM.",
+    "question": "How many fully paid wellness days do employees receive per year?",
+    "ground_truth": "Employees receive 5 fully paid wellness days per year.",
     "source_doc": "sample_policy.txt"
   },
   {
-    "question": "What is the equipment stipend amount for new hires?",
-    "ground_truth": "Every new hire receives a one-time equipment stipend of $1,500.",
+    "question": "What options are available for lunch in the main cafeteria at DocuMind?",
+    "ground_truth": "A catered lunch is served daily at 12:30 PM with vegan, gluten-free, and halal options available.",
     "source_doc": "sample_policy.txt"
   }
 ]

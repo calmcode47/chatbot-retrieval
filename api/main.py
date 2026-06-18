@@ -180,6 +180,11 @@ async def ingest(file: UploadFile = File(...)):
 
     store.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
+    # Rebuild BM25 index so new documents are immediately searchable
+    if hasattr(rag_chain, 'retriever') and rag_chain.retriever is not None:
+        rag_chain.retriever.rebuild_index()
+        logger.info("BM25 index rebuilt after new document ingestion.")
+
     return IngestResponse(
         status="success",
         filename=file.filename,

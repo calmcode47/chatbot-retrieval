@@ -17,6 +17,8 @@ from retrieval.reranker import CrossEncoderReranker
 from retrieval.context_builder import ContextBuilder
 from generation.llm import get_ollama_llm
 from generation.prompt_templates import get_rag_prompt, CONDENSE_QUESTION_PROMPT
+from retrieval.hybrid_retriever import HybridRetriever
+
 
 
 class ConversationalRAGChain:
@@ -37,6 +39,7 @@ class ConversationalRAGChain:
         use_reranker: bool = True,
         reranker_candidates: int = 20,
         max_history_turns: int = 5,
+        use_hybrid_search: bool = True,
     ):
         self.embedder = embedder or EmbeddingService()
         self.vector_store = vector_store or VectorStore()
@@ -46,6 +49,17 @@ class ConversationalRAGChain:
         self.top_k = top_k
         self.score_threshold = score_threshold
         self.max_history_turns = max_history_turns
+        self.use_hybrid_search = use_hybrid_search
+
+        if use_hybrid_search:
+            self.retriever = HybridRetriever(
+                vector_store=self.vector_store,
+                embedder=self.embedder,
+                dense_candidates=reranker_candidates,
+                sparse_candidates=reranker_candidates,
+            )
+        else:
+            self.retriever = None
 
         if use_reranker:
             self.reranker = CrossEncoderReranker()
@@ -112,12 +126,13 @@ class ConversationalRAGChain:
         # Step 1: Condense the follow-up question if history exists
         standalone_question = self._condense_question(question, chat_history)
 
-        # Step 2: Embed the standalone question
-        query_embedding = self.embedder.embed(standalone_question)
-
-        # Step 3: Retrieve
+        # Step 2 & 3: Retrieve
         fetch_k = 20 if self.reranker else self.top_k
-        search_results = self.vector_store.search(query_embedding, top_k=fetch_k)
+        if self.use_hybrid_search and self.retriever:
+            search_results = self.retriever.search(standalone_question, top_k=fetch_k)
+        else:
+            query_embedding = self.embedder.embed(standalone_question)
+            search_results = self.vector_store.search(query_embedding, top_k=fetch_k)
 
         # Step 4: Rerank
         if self.reranker and search_results:
