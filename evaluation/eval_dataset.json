@@ -1,27 +1,110 @@
 [
   {
+    "question": "How many days per week are local employees expected to be physically present in the office?",
+    "ground_truth": "3",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
+  },
+  {
+    "question": "What is the required format for creating branches from main?",
+    "ground_truth": "feature/ticket-number-description",
+    "source_doc": "engineering_guidelines.txt",
+    "source_chunk": "## Git Workflow\nWe use a feature-branch workflow. Developers must create branches from `main` using the format `feature/ticket-number-description`. Pull requests require at least two approvals from team members before they can be merged. Rebase onto `main` before merging to maintain a clean git hist"
+  },
+  {
+    "question": "How much equipment stipend does a new hire receive to set up their home office?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
+  },
+  {
     "question": "How much is the one-time equipment stipend for a new hire?",
-    "ground_truth": "Every new hire receives a one-time equipment stipend of $1,500.",
-    "source_doc": "sample_policy.txt"
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
   },
   {
-    "question": "Which days of the week are designated as core in-office days for local employees?",
-    "ground_truth": "Tuesdays and Thursdays are designated as core in-office days.",
-    "source_doc": "sample_policy.txt"
+    "question": "How many days per week are employees at DocuMind allowed to work remotely?",
+    "ground_truth": "3",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
   },
   {
-    "question": "How many days per week are employees allowed to work remotely?",
-    "ground_truth": "Employees at DocuMind are allowed to work remotely up to 3 days per week.",
-    "source_doc": "sample_policy.txt"
+    "question": "What day of the week is designated as core in-office for local employees at DocuMind?",
+    "ground_truth": "Tuesdays and Thursdays",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
   },
   {
-    "question": "How many fully paid wellness days do employees receive per year?",
-    "ground_truth": "Employees receive 5 fully paid wellness days per year.",
-    "source_doc": "sample_policy.txt"
+    "question": "Which days of the week are designated as core in-office days for local employees at DocuMind?",
+    "ground_truth": "Tuesdays and Thursdays",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
   },
   {
-    "question": "What options are available for lunch in the main cafeteria at DocuMind?",
-    "ground_truth": "A catered lunch is served daily at 12:30 PM with vegan, gluten-free, and halal options available.",
-    "source_doc": "sample_policy.txt"
+    "question": "What is the maximum allowed length for lines of code?",
+    "ground_truth": "120 characters",
+    "source_doc": "engineering_guidelines.txt",
+    "source_chunk": "# DocuMind Engineering Guidelines\n\n## Coding Standards\nAll code must be written in Python or TypeScript. We follow PEP 8 styling guidelines for Python, and use ESLint and Prettier for TypeScript. Lines of code should not exceed 120 characters, and all functions should have type hints and descriptive"
+  },
+  {
+    "question": "When is a manual verification step required before pushing from staging to production?",
+    "ground_truth": "A manual verification step is required before pushing from staging to production.",
+    "source_doc": "engineering_guidelines.txt",
+    "source_chunk": "## Deployment Pipeline\nCode is deployed to staging automatically upon merging to `main`. A manual verification step is required before pushing from staging to production. Production deployments are done on Tuesdays and Thursdays during low-traffic windows."
+  },
+  {
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
+  },
+  {
+    "question": "What day of the week is designated as core in-office for local employees at DocuMind?",
+    "ground_truth": "Tuesdays and Thursdays",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
+  },
+  {
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
+  },
+  {
+    "question": "Which days of the week are designated as core in-office days for local employees at DocuMind?",
+    "ground_truth": "Tuesdays and Thursdays",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
+  },
+  {
+    "question": "What percentage of code coverage is required for all new features?",
+    "ground_truth": "80%",
+    "source_doc": "engineering_guidelines.txt",
+    "source_chunk": "## Testing Practices\nWe require at least 80% code coverage for all new features. Tests must be written using Pytest for backend and Jest for frontend. Integration tests are required for any API endpoints or vector store retrievers. Mock external dependencies, such as third-party APIs, to keep tests "
+  },
+  {
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
+  },
+  {
+    "question": "What day of the week is designated as core in-office for local employees at DocuMind?",
+    "ground_truth": "Tuesdays and Thursdays",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "# DocuMind Sample Company Policy\n\n## Remote Work Policy\nEmployees at DocuMind are allowed to work remotely up to 3 days per week. Tuesdays and Thursdays are designated as core in-office days where all local employees are expected to be physically present in the office.\n\n## Office Perks & Lunch\nA cat"
+  },
+  {
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
+  },
+  {
+    "question": "How much is the one-time equipment stipend for a new hire?",
+    "ground_truth": "$1,500",
+    "source_doc": "sample_policy.txt",
+    "source_chunk": "## Equipment Allowance\nEvery new hire receives a one-time equipment stipend of $1,500 to set up their home office. This stipend can be used to purchase monitors, keyboards, ergonomic chairs, or desks.\n\n## Leave Policy\nWe offer 25 days of paid annual leave, plus 10 public holidays. Employees also rec"
   }
 ]

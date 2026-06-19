@@ -1,0 +1,49 @@
+# docker-compose.yml
+
+services:
+
+  documind-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: documind-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data       # Persist ChromaDB across restarts
+      - ./models:/app/models   # Persist downloaded embedding models
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      - EMBEDDING_DEVICE=cpu   # No MPS in Docker — CPU for embedding
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+    # This allows the container to reach the macOS host's Ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import httpx; httpx.get('http://localhost:8000/api/v1/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  documind-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: documind-ui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+    depends_on:
+      documind-api:
+        condition: service_healthy
+
+networks:
+  default:
+    name: documind-network

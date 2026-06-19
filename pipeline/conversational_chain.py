@@ -21,6 +21,9 @@ from retrieval.hybrid_retriever import HybridRetriever
 
 
 
+from configs.settings import get_config
+
+
 class ConversationalRAGChain:
     """
     Stateful RAG pipeline with conversation history.
@@ -33,35 +36,54 @@ class ConversationalRAGChain:
         self,
         embedder: EmbeddingService = None,
         vector_store: VectorStore = None,
-        model_name: str = "llama3.2:3b",
-        top_k: int = 5,
-        score_threshold: float = 0.3,
-        use_reranker: bool = True,
-        reranker_candidates: int = 20,
-        max_history_turns: int = 5,
-        use_hybrid_search: bool = True,
+        config_path: str = None,   # NEW: optional explicit config path
+        # Explicit overrides still work — useful for testing
+        model_name: str = None,
+        top_k: int = None,
+        score_threshold: float = None,
+        use_reranker: bool = None,
+        reranker_candidates: int = None,
+        max_history_turns: int = None,
+        use_hybrid_search: bool = None,
     ):
-        self.embedder = embedder or EmbeddingService()
-        self.vector_store = vector_store or VectorStore()
-        self.context_builder = ContextBuilder()
-        self.llm = get_ollama_llm(model=model_name)
-        self.rag_prompt = get_rag_prompt()
-        self.top_k = top_k
-        self.score_threshold = score_threshold
-        self.max_history_turns = max_history_turns
-        self.use_hybrid_search = use_hybrid_search
+        cfg = get_config(config_path)
 
-        if use_hybrid_search:
+        # Use explicit args if provided; fall back to config
+        self.top_k              = top_k or cfg.retrieval.top_k
+        self.score_threshold    = score_threshold if score_threshold is not None else cfg.retrieval.score_threshold
+        self.max_history_turns  = max_history_turns or cfg.conversation.max_history_turns
+        self.use_hybrid_search  = use_hybrid_search if use_hybrid_search is not None else (cfg.retrieval.strategy == "hybrid")
+        
+        effective_model         = model_name or cfg.llm.model
+        effective_reranker      = use_reranker if use_reranker is not None else cfg.retrieval.rerank
+        effective_candidates    = reranker_candidates or cfg.retrieval.reranker_candidates
+
+        self.embedder     = embedder or EmbeddingService(
+            model_name=cfg.embedding.model_name,
+            device=cfg.embedding.device,
+        )
+        self.vector_store = vector_store or VectorStore(
+            persist_directory=cfg.vector_store.persist_directory,
+        )
+        self.context_builder = ContextBuilder()
+        self.llm = get_ollama_llm(
+            model=effective_model,
+            base_url=cfg.llm.base_url,
+            temperature=cfg.llm.temperature,
+        )
+        self.rag_prompt = get_rag_prompt()
+
+        if self.use_hybrid_search:
             self.retriever = HybridRetriever(
                 vector_store=self.vector_store,
                 embedder=self.embedder,
-                dense_candidates=reranker_candidates,
-                sparse_candidates=reranker_candidates,
+                dense_candidates=effective_candidates,
+                sparse_candidates=effective_candidates,
             )
         else:
             self.retriever = None
 
-        if use_reranker:
+        if effective_reranker:
             self.reranker = CrossEncoderReranker()
         else:
             self.reranker = None

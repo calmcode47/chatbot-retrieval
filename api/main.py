@@ -4,7 +4,6 @@ FastAPI application factory.
 
 import time
 import httpx
-import yaml
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +17,9 @@ from ingestion.embedder import EmbeddingService
 from ingestion.loaders import load_file
 from ingestion.chunker import DocumentChunker
 from retrieval.vector_store import VectorStore
+from ingestion.document_registry import DocumentRegistry
 import uuid
+from configs.settings import get_config
 
 
 # Global state — initialized once at startup
@@ -26,64 +27,51 @@ rag_chain: ConversationalRAGChain = None
 embedder: EmbeddingService = None
 store: VectorStore = None
 chunker: DocumentChunker = None
+registry: DocumentRegistry = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize all components and pre-warm the LLM on startup."""
-    global rag_chain, embedder, store, chunker
+    global rag_chain, embedder, store, chunker, registry
 
     logger.info("Starting DocuMind API...")
 
     # Load configuration
-    config = {}
-    config_path = Path("configs/config.yaml")
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
-            logger.info("Configuration loaded from configs/config.yaml")
-
-    retrieval_cfg = config.get("retrieval", {})
-    top_k = retrieval_cfg.get("top_k", 5)
-    score_threshold = retrieval_cfg.get("score_threshold", 0.3)
-    rerank = retrieval_cfg.get("rerank", True)
-    reranker_candidates = retrieval_cfg.get("reranker_candidates", 20)
-
-    embedding_cfg = config.get("embedding", {})
-    emb_model = embedding_cfg.get("model_name", "BAAI/bge-base-en-v1.5")
-    emb_device = embedding_cfg.get("device", None)
-
-    llm_cfg = config.get("llm", {})
-    llm_model = llm_cfg.get("model", "llama3.2:3b")
+    cfg = get_config()
 
     # Initialize components
-    embedder = EmbeddingService(model_name=emb_model, device=emb_device)
+    embedder = EmbeddingService(model_name=cfg.embedding.model_name, device=cfg.embedding.device)
     store = VectorStore()
     chunker = DocumentChunker()
+    registry = DocumentRegistry()
+    # Sync registry with what's actually in the vector store
+    registry.sync_with_store(store.list_sources())
+
     rag_chain = ConversationalRAGChain(
         embedder=embedder,
         vector_store=store,
-        model_name=llm_model,
-        top_k=top_k,
-        score_threshold=score_threshold,
-        use_reranker=rerank,
-        reranker_candidates=reranker_candidates,
+        model_name=cfg.llm.model,
+        top_k=cfg.retrieval.top_k,
+        score_threshold=cfg.retrieval.score_threshold,
+        use_reranker=cfg.retrieval.rerank,
+        reranker_candidates=cfg.retrieval.reranker_candidates,
     )
 
     # ── Warmup the Ollama LLM ──────────────────────────────────
     # This forces Ollama to load model weights into RAM NOW,
     # so the first real user query does not bear the cold-start cost.
-    logger.info("Warming up Ollama LLM... (loading model weights into RAM)")
+    logger.info(f"Warming up Ollama LLM... (loading model weights into RAM at {cfg.llm.base_url})")
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             warmup_payload = {
-                "model": "llama3.2:3b",      # Must match your config
+                "model": cfg.llm.model,
                 "prompt": "warmup",
                 "stream": False,
                 "options": {"num_predict": 1},  # Generate only 1 token — fast
             }
             response = await client.post(
-                "http://localhost:11434/api/generate",
+                f"{cfg.llm.base_url}/api/generate",
                 json=warmup_payload,
             )
             if response.status_code == 200:
@@ -91,7 +79,7 @@ async def lifespan(app: FastAPI):
             else:
                 logger.warning(f"Ollama warmup returned {response.status_code}. Check if 'ollama serve' is running.")
     except httpx.ConnectError:
-        logger.error("Cannot reach Ollama at localhost:11434. Start it with: ollama serve")
+        logger.error(f"Cannot reach Ollama at {cfg.llm.base_url}. Start it with: ollama serve")
     # ─────────────────────────────────────────────────────────────────
 
     logger.success("DocuMind API ready. All components initialized.")
@@ -118,11 +106,15 @@ app.add_middleware(
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health():
     from datetime import datetime
-    return HealthResponse(
-        status="ok",
-        vector_store_count=store.count,
-        timestamp=datetime.now().isoformat(),
-    )
+    stats = {
+        "status":              "ok",
+        "vector_store_count":  store.count,
+        "timestamp":           datetime.now().isoformat(),
+    }
+    # Include cache stats if available
+    if embedder and embedder._cache:
+        stats["embedding_cache"] = embedder.cache_stats()
+    return stats
 
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
@@ -180,6 +172,13 @@ async def ingest(file: UploadFile = File(...)):
 
     store.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
+    # Register in document registry
+    registry.register(
+        source_file=file.filename,
+        file_path=str(save_path),
+        chunk_count=len(chunks),
+    )
+
     # Rebuild BM25 index so new documents are immediately searchable
     if hasattr(rag_chain, 'retriever') and rag_chain.retriever is not None:
         rag_chain.retriever.rebuild_index()
@@ -193,14 +192,38 @@ async def ingest(file: UploadFile = File(...)):
     )
 
 
-@app.get("/api/v1/documents")
+from api.schemas import DocumentInfo, DocumentListResponse
+
+@app.get("/api/v1/documents", response_model=DocumentListResponse)
 async def list_documents():
-    """List all indexed documents."""
-    return {"documents": store.list_sources()}
+    """Return all indexed documents with rich metadata."""
+    entries = registry.list_all()
+
+    # Fallback: if registry is empty but store has documents
+    # (e.g., documents were ingested before this feature was added),
+    # create minimal entries from what's in ChromaDB
+    if not entries and store.count > 0:
+        for source in store.list_sources():
+            entries.append({
+                "source_file":       source,
+                "file_type":         source.split(".")[-1] if "." in source else "unknown",
+                "file_size_bytes":   0,
+                "file_size_display": "unknown",
+                "upload_timestamp":  "unknown",
+                "chunk_count":       0,
+                "ingestion_id":      "legacy",
+            })
+
+    return DocumentListResponse(
+        documents=[DocumentInfo(**e) for e in entries],
+        total_docs=len(entries),
+        total_chunks=store.count,
+    )
 
 
 @app.delete("/api/v1/documents/{filename}")
 async def delete_document(filename: str):
     """Remove a document and all its chunks from the vector store."""
     deleted = store.delete_by_source(filename)
+    registry.remove(filename)
     return {"deleted_chunks": deleted, "filename": filename}

@@ -57,16 +57,20 @@ class CrossEncoderReranker:
         logger.debug(f"Re-ranking {len(pairs)} candidates with cross-encoder...")
         scores = self.model.predict(pairs, show_progress_bar=False)
 
+        import math
         # Attach rerank score to each result and sort descending
         for result, score in zip(results, scores):
+            # Map raw logits to [0, 1] range using sigmoid
+            prob = 1 / (1 + math.exp(-float(score)))
             result["rerank_score"] = float(score)
+            result["score"] = prob
 
-        reranked = sorted(results, key=lambda x: x["rerank_score"], reverse=True)
+        reranked = sorted(results, key=lambda x: x["score"], reverse=True)
 
         top = reranked[:top_k]
         logger.debug(
             f"Reranking complete. "
-            f"Top score: {top[0]['rerank_score']:.3f} | "
-            f"Bottom of top-{top_k}: {top[-1]['rerank_score']:.3f}"
+            f"Top score: {top[0]['score']:.3f} (logit: {top[0]['rerank_score']:.3f}) | "
+            f"Bottom of top-{top_k}: {top[-1]['score']:.3f} (logit: {top[-1]['rerank_score']:.3f})"
         )
         return top

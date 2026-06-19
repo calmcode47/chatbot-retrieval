@@ -12,6 +12,7 @@ from ingestion.chunker import DocumentChunker
 from ingestion.embedder import EmbeddingService
 from retrieval.vector_store import VectorStore
 import uuid
+from configs.settings import get_config
 
 
 def ingest_document(
@@ -77,16 +78,34 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest documents into DocuMind vector store")
     parser.add_argument("--source-dir", default="data/raw/", help="Directory containing documents")
     parser.add_argument("--file", default=None, help="Single file to ingest")
-    parser.add_argument("--parent-chunks", action="store_true", help="Use parent-document hierarchical chunking")
+    parser.add_argument(
+        "--hierarchical",
+        action="store_true",
+        default=None,   # None = read from config
+        help="Use hierarchical parent/child chunking",
+    )
     args = parser.parse_args()
 
-    # Initialize components
-    embedder = EmbeddingService()
-    store = VectorStore()
-    chunker = DocumentChunker(chunk_size=512, chunk_overlap=64)
+    # Read chunking strategy from config if not explicitly set via flag
+    cfg = get_config()
+    use_hierarchical = args.hierarchical
+    if use_hierarchical is None:
+        use_hierarchical = (cfg.chunking.strategy == "hierarchical")
+
+    logger.info(f"Chunking strategy: {'hierarchical' if use_hierarchical else 'flat'}")
+
+    embedder = EmbeddingService(
+        model_name=cfg.embedding.model_name,
+        device=cfg.embedding.device,
+    )
+    store = VectorStore(
+        persist_directory=cfg.vector_store.persist_directory,
+        collection_name=cfg.vector_store.collection_name,
+    )
+    chunker = DocumentChunker(chunk_size=cfg.chunking.chunk_size, chunk_overlap=cfg.chunking.chunk_overlap)
 
     if args.file:
-        ingest_document(args.file, embedder, store, chunker, use_parent_chunks=args.parent_chunks)
+        ingest_document(args.file, embedder, store, chunker, use_parent_chunks=use_hierarchical)
     else:
         source_dir = Path(args.source_dir)
         files = list(source_dir.glob("**/*.pdf")) + list(source_dir.glob("**/*.txt"))
@@ -97,7 +116,7 @@ def main():
 
         total_chunks = 0
         for file_path in files:
-            total_chunks += ingest_document(str(file_path), embedder, store, chunker, use_parent_chunks=args.parent_chunks)
+            total_chunks += ingest_document(str(file_path), embedder, store, chunker, use_parent_chunks=use_hierarchical)
 
         logger.success(f"Ingestion complete. Total chunks indexed: {total_chunks}")
         logger.info(f"Vector store now contains {store.count} chunks total.")

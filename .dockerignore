@@ -1,0 +1,16 @@
+# .dockerignore
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.env
+*.log
+data/chroma_db/
+data/raw/
+models/
+notebooks/
+scripts/
+tests/
+envs/
+.DS_Store
+*.swp

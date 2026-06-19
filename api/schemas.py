@@ -57,3 +57,21 @@ class HealthResponse(BaseModel):
     status: str
     vector_store_count: int
     timestamp: str
+    embedding_cache: Optional[dict] = None
+
+
+class DocumentInfo(BaseModel):
+    """Rich metadata for a single indexed document."""
+    source_file:       str
+    file_type:         str
+    file_size_bytes:   int
+    file_size_display: str
+    upload_timestamp:  str
+    chunk_count:       int
+    ingestion_id:      str
+
+
+class DocumentListResponse(BaseModel):
+    documents:     List[DocumentInfo]
+    total_docs:    int
+    total_chunks:  int

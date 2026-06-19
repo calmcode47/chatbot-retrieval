@@ -66,8 +66,12 @@ def generate_dataset():
 
     store = VectorStore()
 
-    if store.count == 0:
-        logger.error("Vector store is empty. Run 'make ingest' first.")
+    if store.count < 20:
+        logger.error(
+            f"Vector store contains only {store.count} chunks. "
+            "Must be at least 20 before generating evaluation data. "
+            "Please run 'make ingest' first or add more documents."
+        )
         return
 
     logger.info(f"Fetching chunks from ChromaDB ({store.count} total)...")

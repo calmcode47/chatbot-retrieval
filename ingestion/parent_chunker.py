@@ -19,6 +19,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from loguru import logger
 
 
+from configs.settings import get_config
+
+
 @dataclass
 class HierarchicalChunk:
     """A child chunk with a reference to its parent text."""
@@ -38,20 +41,22 @@ class ParentDocumentChunker:
 
     def __init__(
         self,
-        parent_chunk_size: int = 512,
-        parent_chunk_overlap: int = 32,
-        child_chunk_size: int = 128,
-        child_chunk_overlap: int = 16,
+        parent_chunk_size: int = None,
+        parent_chunk_overlap: int = None,
+        child_chunk_size: int = None,
+        child_chunk_overlap: int = None,
     ):
+        # Load from config if not explicitly overridden
+        cfg = get_config().chunking
         self.parent_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=parent_chunk_size,
-            chunk_overlap=parent_chunk_overlap,
-            separators=["\n\n", "\n", ". ", " ", ""],
+            chunk_size=parent_chunk_size or cfg.parent_chunk_size,
+            chunk_overlap=parent_chunk_overlap or cfg.parent_chunk_overlap,
+            separators=cfg.separators,
         )
         self.child_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=child_chunk_size,
-            chunk_overlap=child_chunk_overlap,
-            separators=["\n\n", "\n", ". ", " ", ""],
+            chunk_size=child_chunk_size or cfg.child_chunk_size,
+            chunk_overlap=child_chunk_overlap or cfg.child_chunk_overlap,
+            separators=cfg.separators,
         )
 
     def split(self, documents: List[Document]) -> List[HierarchicalChunk]:
