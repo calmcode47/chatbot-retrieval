@@ -52,3 +52,50 @@ clean-db:
 	@read -p "Are you sure? (y/N): " confirm && [ "$${confirm}" = "y" ] || exit 1
 	rm -rf data/chroma_db/*
 	@echo "Vector store cleared."
+
+
+# ── Ablation studies ──────────────────────────────────────────────────
+ablation-chunks:
+	$(PYTHONPATH) python scripts/ablation_study.py \
+		--param child_chunk_size --values 64 128 256
+
+ablation-topk:
+	$(PYTHONPATH) python scripts/ablation_study.py \
+		--param top_k --values 3 5 8
+
+ablation-rerank:
+	$(PYTHONPATH) python scripts/ablation_study.py \
+		--param reranker_candidates --values 10 20 30
+
+ablation-fast:
+	$(PYTHONPATH) python scripts/ablation_study.py \
+		--param child_chunk_size --values 64 128 256 --fast
+
+ablation-summary:
+	@cat evaluation/ablation_summary.md 2>/dev/null || echo "No ablation results yet."
+
+# ── Cache management ──────────────────────────────────────────────────
+cache-stats:
+	$(PYTHONPATH) python -c "
+from ingestion.embedder import EmbeddingService
+e = EmbeddingService()
+import json; print(json.dumps(e.cache_stats(), indent=2))
+"
+
+cache-clear:
+	@echo "WARNING: Clears all cached embedding vectors."
+	@read -p "Confirm (y/N): " c && [ "$${c}" = "y" ] || exit 1
+	$(PYTHONPATH) python -c "from ingestion.embedding_cache import EmbeddingCache; n=EmbeddingCache().clear(); print(f'Cleared {n} entries.')"
+
+# ── Document manager ──────────────────────────────────────────────────
+docs-list:
+	@curl -s http://localhost:8000/api/v1/documents | python -m json.tool
+
+docs-sync:
+	$(PYTHONPATH) python -c "
+from ingestion.document_registry import DocumentRegistry
+from retrieval.vector_store import VectorStore
+reg = DocumentRegistry(); store = VectorStore()
+n = reg.sync_with_store(store.list_sources())
+print(f'Synced. Removed {n} stale entries.')
+"

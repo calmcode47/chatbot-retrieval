@@ -10,6 +10,13 @@ embedding:
   device: "mps"
   batch_size: 32
   cache_dir: "./models"
+  use_cache: true
+  cache_directory: "./data/embedding_cache"
+  cache_size_limit_gb: 2
+
+# Document registry
+documents:
+  registry_path: "./data/document_registry.json"
 
 chunking:
   chunk_size: 512

@@ -31,6 +31,9 @@ class EmbeddingConfig(BaseModel):
     device: str         = "mps"
     batch_size: int     = 32
     cache_dir: str      = "./models"
+    use_cache: bool     = True
+    cache_directory: str = "./data/embedding_cache"
+    cache_size_limit_gb: int = 2
 
 
 class ChunkingConfig(BaseModel):
@@ -104,6 +107,10 @@ class EvaluationConfig(BaseModel):
     }
 
 
+class DocumentsConfig(BaseModel):
+    registry_path: str = "./data/document_registry.json"
+
+
 class AppConfig(BaseModel):
     """Root configuration object. Access any sub-config as an attribute."""
     embedding:    EmbeddingConfig    = EmbeddingConfig()
@@ -114,6 +121,7 @@ class AppConfig(BaseModel):
     conversation: ConversationConfig = ConversationConfig()
     api:          APIConfig          = APIConfig()
     evaluation:   EvaluationConfig   = EvaluationConfig()
+    documents:    DocumentsConfig    = DocumentsConfig()
 
 
 # ── Loader ───────────────────────────────────────────────────────────
