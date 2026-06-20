@@ -87,6 +87,7 @@ graph TD
 | **React Frontend UI** | [Dockerfile.ui](file:///Users/mayank/chatbot-retrieval/Dockerfile.ui), [ui/src/App.jsx](file:///Users/mayank/chatbot-retrieval/ui/src/App.jsx) | **Completed** | Premium React SPA built with Vite and served on port `8501`. Incorporates interactive 3D Three.js backgrounds, structured layout (Home, About, Dashboard), and complete telemetry/citations rendering. |
 | **Embedding Cache** | [ingestion/embedding_cache.py](file:///Users/mayank/chatbot-retrieval/ingestion/embedding_cache.py) | **Completed** | Disk-based persistent embedding cache using `diskcache` to avoid redundant embedding generation and speed up ingestion. |
 | **Document Registry** | [ingestion/document_registry.py](file:///Users/mayank/chatbot-retrieval/ingestion/document_registry.py) | **Completed** | Persistent JSON-based registry mapping indexed documents to rich metadata (size, file type, upload time, chunk count). |
+| **Ablation Studies** | [scripts/ablation_study.py](file:///Users/mayank/chatbot-retrieval/scripts/ablation_study.py) | **Completed** | Automated parameter sweep framework evaluating retrieval recall and chunking optimization via Ragas. |
 | **RAGAS Evaluation** | [evaluation/ragas_eval.py](file:///Users/mayank/chatbot-retrieval/evaluation/ragas_eval.py) | **Completed** | Uses `llama3.2:3b` for pipeline generation and `mistral:7b` as LLM judge with 180s timeout, score validation, and dataset size guard. |
 
 ---
