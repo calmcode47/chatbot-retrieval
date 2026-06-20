@@ -165,6 +165,9 @@ async def ingest(file: UploadFile = File(...)):
     # Ingest
     documents = load_file(str(save_path))
     chunks = chunker.split(documents)
+    if not chunks:
+        raise HTTPException(status_code=400, detail="The uploaded document contains no readable text or is empty.")
+        
     texts = [c.page_content for c in chunks]
     metadatas = [{"source_file": file.filename, **c.metadata} for c in chunks]
     embeddings = embedder.embed_batch(texts)
