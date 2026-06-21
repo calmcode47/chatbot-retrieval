@@ -5,12 +5,12 @@ FROM node:20-slim
 WORKDIR /app
 
 # Copy package.json and package-lock.json first to leverage Docker cache
-COPY ui/package*.json ./
+COPY package*.json ./
 
 RUN npm ci
 
-# Copy the rest of the ui folder
-COPY ui/ .
+# Copy the rest of the frontend folder
+COPY . .
 
 EXPOSE 8501
 

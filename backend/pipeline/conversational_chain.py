@@ -148,13 +148,33 @@ class ConversationalRAGChain:
         # Step 1: Condense the follow-up question if history exists
         standalone_question = self._condense_question(question, chat_history)
 
+        # Auto-detect if user is asking about a specific source file
+        where_filter = None
+        try:
+            def clean_text(t: str) -> str:
+                return "".join(c for c in t.lower() if c.isalnum())
+
+            norm_question = clean_text(question)
+            norm_standalone = clean_text(standalone_question)
+
+            sources_list = self.vector_store.list_sources()
+            for source in sources_list:
+                base_name = source.rsplit(".", 1)[0] if "." in source else source
+                clean_src = clean_text(base_name)
+                if len(clean_src) >= 3 and (clean_src in norm_question or clean_src in norm_standalone):
+                    where_filter = {"source_file": source}
+                    logger.info(f"Detected query target source file: '{source}'. Applying metadata filter.")
+                    break
+        except Exception as e:
+            logger.warning(f"Failed to check source file matching: {e}")
+
         # Step 2 & 3: Retrieve
         fetch_k = 20 if self.reranker else self.top_k
         if self.use_hybrid_search and self.retriever:
-            search_results = self.retriever.search(standalone_question, top_k=fetch_k)
+            search_results = self.retriever.search(standalone_question, top_k=fetch_k, where=where_filter)
         else:
             query_embedding = self.embedder.embed(standalone_question)
-            search_results = self.vector_store.search(query_embedding, top_k=fetch_k)
+            search_results = self.vector_store.search(query_embedding, top_k=fetch_k, where=where_filter)
 
         # Step 4: Rerank
         if self.reranker and search_results:
@@ -165,7 +185,8 @@ class ConversationalRAGChain:
             )
 
         # Step 5: Build context and generate answer
-        context, sources = self.context_builder.build(search_results, self.score_threshold)
+        threshold = 0.0 if where_filter else self.score_threshold
+        context, sources = self.context_builder.build(search_results, threshold)
         messages = self.rag_prompt.format_messages(context=context, question=standalone_question)
         response = self.llm.invoke(messages)
 

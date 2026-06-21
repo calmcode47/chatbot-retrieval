@@ -185,6 +185,9 @@ class HybridRetriever:
 
         # Sparse retrieval via BM25
         sparse_results = self._bm25_search(query, top_k=self.sparse_candidates)
+        if where and "source_file" in where:
+            target_source = where["source_file"]
+            sparse_results = [r for r in sparse_results if r.get("metadata", {}).get("source_file") == target_source]
 
         # Merge with RRF
         fused = reciprocal_rank_fusion(dense_results, sparse_results)

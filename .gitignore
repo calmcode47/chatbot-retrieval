@@ -20,13 +20,13 @@ ENV/
 conda/
 
 # DocuMind local databases and models
-data/chroma_db/
-models/
-data/raw/*
-!data/raw/.gitkeep
-data/document_registry.json
-data/embedding_cache/
-evaluation/ragas_results.json
+backend/data/chroma_db/
+backend/models/
+backend/data/raw/*
+!backend/data/raw/.gitkeep
+backend/data/document_registry.json
+backend/data/embedding_cache/
+backend/evaluation/ragas_results.json
 
 # OS files
 .DS_Store

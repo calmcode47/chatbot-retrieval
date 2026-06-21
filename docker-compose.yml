@@ -4,15 +4,15 @@ services:
 
   documind-api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: documind-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data       # Persist ChromaDB across restarts
-      - ./models:/app/models   # Persist downloaded embedding models
+      - ./backend/data:/app/data       # Persist ChromaDB across restarts
+      - ./backend/models:/app/models   # Persist downloaded embedding models
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.2:3b
@@ -32,8 +32,8 @@ services:
 
   documind-ui:
     build:
-      context: .
-      dockerfile: Dockerfile.ui
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: documind-ui
     restart: unless-stopped
     ports:

@@ -106,9 +106,11 @@ def test_conversational_chain_condense():
         mock_llm.invoke.return_value = mock_response
 
         # Initialize chain (will use mocked get_ollama_llm)
+        mock_vs = MagicMock()
+        mock_vs.count = 0
         chain = ConversationalRAGChain(
             embedder=MagicMock(),
-            vector_store=MagicMock(),
+            vector_store=mock_vs,
             model_name="mock-model",
             use_reranker=False,
         )
