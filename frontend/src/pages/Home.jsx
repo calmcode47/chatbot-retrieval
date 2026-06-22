@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import * as THREE from "three";
 import { ArrowRight, Shield, Zap, Search, Layers, Database, Lock, Cpu } from "lucide-react";
+import * as THREE from "three";
 
 export default function Home({ setActivePage }) {
   const threeRef = useRef(null);
@@ -8,188 +8,144 @@ export default function Home({ setActivePage }) {
   useEffect(() => {
     if (!threeRef.current) return;
 
-    // --- Knowledge Globe Scene Setup ---
+    // --- Vector Space Wave Setup ---
     const scene = new THREE.Scene();
+    
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20);
-    camera.position.z = 6;
+    camera.position.set(0, 2.2, 4.2);
+    camera.lookAt(0, -0.2, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(380, 380);
+    renderer.setSize(400, 400);
     renderer.setPixelRatio(window.devicePixelRatio);
     threeRef.current.appendChild(renderer.domElement);
 
-    // Master Group for tilt effect
-    const masterGroup = new THREE.Group();
-    scene.add(masterGroup);
+    // Grid Dimensions
+    const numX = 26;
+    const numZ = 26;
+    const gap = 0.16;
+    const particleCount = numX * numZ;
 
-    // --- 1. Glowing Central Core ---
-    const coreGroup = new THREE.Group();
-    masterGroup.add(coreGroup);
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
 
-    // Core solid sphere
-    const coreSphereGeom = new THREE.SphereGeometry(0.7, 32, 32);
-    const coreSphereMat = new THREE.MeshBasicMaterial({
-      color: 0x6784ff, // Royal Blue
-      transparent: true,
-      opacity: 0.1,
-    });
-    const coreSphere = new THREE.Mesh(coreSphereGeom, coreSphereMat);
-    coreGroup.add(coreSphere);
-
-    // Core wireframe sphere for technical grid feel
-    const coreWireGeom = new THREE.SphereGeometry(0.72, 16, 16);
-    const coreWireMat = new THREE.MeshBasicMaterial({
-      color: 0x00f2fe, // Cyan
-      wireframe: true,
-      transparent: true,
-      opacity: 0.25,
-    });
-    const coreWire = new THREE.Mesh(coreWireGeom, coreWireMat);
-    coreGroup.add(coreWire);
-
-    // --- 2. Orbital Process Rings ---
-    // Ring 1 (Dense Vector Retrieval - Royal Blue)
-    const ring1Geom = new THREE.RingGeometry(1.1, 1.13, 64);
-    const ring1Mat = new THREE.MeshBasicMaterial({
-      color: 0x6784ff,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const ring1 = new THREE.Mesh(ring1Geom, ring1Mat);
-    ring1.rotation.x = Math.PI / 2.5;
-    masterGroup.add(ring1);
-
-    // Ring 2 (Sparse Keyword Search - Cyan)
-    const ring2Geom = new THREE.RingGeometry(1.3, 1.32, 64);
-    const ring2Mat = new THREE.MeshBasicMaterial({
-      color: 0x00f2fe,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.4,
-    });
-    const ring2 = new THREE.Mesh(ring2Geom, ring2Mat);
-    ring2.rotation.x = -Math.PI / 3;
-    ring2.rotation.y = Math.PI / 6;
-    masterGroup.add(ring2);
-
-    // Ring 3 (Cross-Encoder Rerank - Purple)
-    const ring3Geom = new THREE.RingGeometry(1.5, 1.51, 64);
-    const ring3Mat = new THREE.MeshBasicMaterial({
-      color: 0xa855f7, // Purple
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const ring3 = new THREE.Mesh(ring3Geom, ring3Mat);
-    ring3.rotation.y = Math.PI / 4;
-    masterGroup.add(ring3);
-
-    // --- 3. Constellation Node Cloud & Connection Filaments ---
-    const nodeGroup = new THREE.Group();
-    masterGroup.add(nodeGroup);
-
-    const nodeCount = 16;
-    const nodeMeshes = [];
-    const lineMaterials = [];
-
-    for (let i = 0; i < nodeCount; i++) {
-      // Position nodes in a shell around the core
-      const phi = Math.acos(-1 + (2 * i) / nodeCount);
-      const theta = Math.sqrt(nodeCount * Math.PI) * phi;
-      const radius = 1.2 + Math.random() * 0.4;
-
-      const x = radius * Math.cos(theta) * Math.sin(phi);
-      const y = radius * Math.sin(theta) * Math.sin(phi);
-      const z = radius * Math.cos(phi);
-
-      // Node mesh
-      const nodeGeom = new THREE.SphereGeometry(0.04, 8, 8);
-      const nodeMat = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0x00f2fe : 0x6784ff,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const node = new THREE.Mesh(nodeGeom, nodeMat);
-      node.position.set(x, y, z);
-      nodeGroup.add(node);
-      nodeMeshes.push(node);
-
-      // Filament line linking node to core center
-      const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, y, z)];
-      const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: 0x6784ff,
-        transparent: true,
-        opacity: 0.15,
-      });
-      const line = new THREE.Line(lineGeom, lineMat);
-      nodeGroup.add(line);
-      lineMaterials.push(lineMat);
+    for (let x = 0; x < numX; x++) {
+      for (let z = 0; z < numZ; z++) {
+        const i = x * numZ + z;
+        positions[i * 3] = (x - numX / 2) * gap;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = (z - numZ / 2) * gap;
+      }
     }
 
-    // --- 4. Interactive Mouse Tilting ---
-    let targetX = 0;
-    let targetY = 0;
-    let currentX = 0;
-    let currentY = 0;
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+    // Custom circle glowing particle texture
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    const gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(0.2, "rgba(99, 102, 241, 0.8)"); // Indigo
+    gradient.addColorStop(0.6, "rgba(139, 92, 246, 0.2)"); // Violet
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 16, 16);
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const material = new THREE.PointsMaterial({
+      size: 0.15,
+      map: texture,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.85,
+    });
+
+    const points = new THREE.Points(geometry, material);
+    scene.add(points);
+
+    // --- Interactive Mouse Coordinates mapping ---
+    let targetMouseX = 100; 
+    let targetMouseZ = 100;
+    let currentMouseX = 100;
+    let currentMouseZ = 100;
 
     const handleMouseMove = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      const clientX = event.clientX - rect.left;
-      const clientY = event.clientY - rect.top;
-      
-      // Calculate relative position to container center
-      targetX = (clientX - rect.width / 2) * 0.0025;
-      targetY = (clientY - rect.height / 2) * 0.0025;
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      targetMouseX = x * 2.2;
+      targetMouseZ = -y * 2.2;
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
+    const handleMouseLeave = () => {
+      targetMouseX = 100;
+      targetMouseZ = 100;
+    };
+
+    renderer.domElement.addEventListener("mousemove", handleMouseMove);
+    renderer.domElement.addEventListener("mouseleave", handleMouseLeave);
 
     // --- Animation Loop ---
     let animationId;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
+      const time = clock.getElapsedTime() * 1.4;
 
-      // Slow orbital rotations
-      coreGroup.rotation.y += 0.004;
-      coreGroup.rotation.x += 0.002;
+      const positionsAttr = points.geometry.attributes.position;
+      const array = positionsAttr.array;
 
-      ring1.rotation.z -= 0.006;
-      ring2.rotation.z += 0.005;
-      ring3.rotation.z -= 0.003;
+      // Smooth mouse coordinates interpolation
+      currentMouseX += (targetMouseX - currentMouseX) * 0.08;
+      currentMouseZ += (targetMouseZ - currentMouseZ) * 0.08;
 
-      nodeGroup.rotation.y += 0.003;
-      nodeGroup.rotation.x += 0.001;
+      for (let x = 0; x < numX; x++) {
+        for (let z = 0; z < numZ; z++) {
+          const i = x * numZ + z;
+          const posX = (x - numX / 2) * gap;
+          const posZ = (z - numZ / 2) * gap;
 
-      // Pulsing node opacity
-      nodeMeshes.forEach((mesh, index) => {
-        mesh.material.opacity = 0.5 + Math.sin(time * 2 + index) * 0.3;
-      });
+          // Compute mathematical wave equation
+          let y = Math.sin(posX * 1.5 + time) * 0.15 + 
+                  Math.cos(posZ * 1.5 + time * 0.7) * 0.1;
 
-      // Smooth mouse tracking interpolation
-      currentX += (targetX - currentX) * 0.05;
-      currentY += (targetY - currentY) * 0.05;
+          // Compute distance to pointer to create a ripple/indentation effect
+          const dx = posX - currentMouseX;
+          const dz = posZ - currentMouseZ;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist < 1.2) {
+            const pullForce = (1.2 - dist) * 0.28;
+            y -= pullForce; // indentation
+          }
 
-      masterGroup.rotation.y = currentX;
-      masterGroup.rotation.x = currentY;
+          array[i * 3 + 1] = y;
+        }
+      }
 
-      // Gentle floating animation
-      masterGroup.position.y = Math.sin(time) * 0.08;
+      positionsAttr.needsUpdate = true;
+
+      // Rotate points grid slightly over time
+      points.rotation.y = time * 0.04;
 
       renderer.render(scene, camera);
     };
+
     animate();
 
     // --- Cleanup ---
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener("mousemove", handleMouseMove);
-      if (renderer && renderer.domElement && threeRef.current) {
-        threeRef.current.removeChild(renderer.domElement);
+      if (renderer && renderer.domElement) {
+        renderer.domElement.removeEventListener("mousemove", handleMouseMove);
+        renderer.domElement.removeEventListener("mouseleave", handleMouseLeave);
+        if (threeRef.current) {
+          threeRef.current.removeChild(renderer.domElement);
+        }
       }
       scene.clear();
     };
@@ -198,23 +154,23 @@ export default function Home({ setActivePage }) {
   const features = [
     {
       icon: Lock,
-      title: "Private Ingestion",
-      desc: "Documents stay fully localized inside your local container workspace with zero external API key requirements.",
+      title: "Isolated Security",
+      desc: "Documents are processed locally in your container environment, avoiding third-party servers and cloud API leaks.",
     },
     {
       icon: Cpu,
-      title: "Hardware Accelerated",
-      desc: "Leverages local Apple Silicon GPU (MPS) acceleration to generate high-performance embeddings locally.",
+      title: "Metal & CUDA Acceleration",
+      desc: "Automatically routes embedding generation pipelines to host-native hardware acceleration (MPS/CPU).",
     },
     {
       icon: Search,
-      title: "Hybrid Search Core",
-      desc: "Combines dense vector search (ChromaDB) and sparse keyword indices (BM25) using Reciprocal Rank Fusion (RRF).",
+      title: "Hybrid Match Index",
+      desc: "Balances semantic vectors and sparse text index channels using Reciprocal Rank Fusion.",
     },
     {
       icon: Layers,
-      title: "Cross-Encoder Rerank",
-      desc: "Utilizes deep cross-attention reranking (BAAI/bge-reranker-base) to prioritize high-fidelity context passages.",
+      title: "Attention-Based Rerank",
+      desc: "Refines candidates through a local Cross-Encoder transformer before drafting context prompts.",
     },
   ];
 
@@ -224,15 +180,15 @@ export default function Home({ setActivePage }) {
       <section className="hero-section">
         <div className="hero-text-content">
           <div className="hero-badge">
-            <Shield size={14} className="badge-icon" />
-            <span>Secure Local RAG System</span>
+            <Shield size={13} className="badge-icon" />
+            <span>Local RAG Pipeline</span>
           </div>
           <h1 className="hero-title">
-            The Private Intelligence <br />
-            <span className="gradient-text">For Your Documents</span>
+            Enterprise Q&A <br />
+            <span className="gradient-text">Fully Encrypted</span>
           </h1>
           <p className="hero-subtitle">
-            Perform enterprise-grade Retrieval-Augmented Generation (RAG) over PDF, TXT, and MD datasets. All computations run 100% locally.
+            An isolated Retrieval-Augmented Generation workspace for indexing and exploring private PDF, TXT, and Markdown files locally.
           </p>
           <div className="hero-actions">
             <button
@@ -240,7 +196,7 @@ export default function Home({ setActivePage }) {
               onClick={() => setActivePage("dashboard")}
             >
               <span>Enter Workspace</span>
-              <ArrowRight size={20} />
+              <ArrowRight size={18} />
             </button>
           </div>
         </div>
@@ -250,11 +206,11 @@ export default function Home({ setActivePage }) {
         </div>
       </section>
 
-      {/* Tech Architecture Overview Cards */}
+      {/* Highlights Grid */}
       <section className="features-section">
-        <h2 className="features-title">Technical Architecture Highlights</h2>
+        <h2 className="features-title">Technical Highlights</h2>
         <p className="features-subtitle">
-          Engineered for privacy, speed, and high-fidelity factual context matching.
+          Constructed with a privacy-centric pipeline for rapid factual document retrieval.
         </p>
         <div className="features-grid">
           {features.map((feat, idx) => {
@@ -262,7 +218,7 @@ export default function Home({ setActivePage }) {
             return (
               <div key={idx} className="feature-card glass-panel">
                 <div className="feature-icon-wrapper">
-                  <Icon size={24} className="feature-icon" />
+                  <Icon size={22} className="feature-icon" />
                 </div>
                 <h3 className="feature-card-title">{feat.title}</h3>
                 <p className="feature-card-desc">{feat.desc}</p>
@@ -272,32 +228,32 @@ export default function Home({ setActivePage }) {
         </div>
       </section>
 
-      {/* RAG Processing Visual Flow */}
+      {/* Process Architecture Flow */}
       <section className="flow-section glass-panel">
         <h2 className="flow-title">Pipeline Architecture</h2>
         <div className="flow-steps">
           <div className="flow-step">
             <div className="step-num">1</div>
-            <h4>Ingestion & Chunking</h4>
+            <h4>Ingest</h4>
             <p>Documents are split into hierarchical parent-child context structures.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">2</div>
-            <h4>Hybrid Indexing</h4>
+            <h4>Index</h4>
             <p>Parallel processing creates ChromaDB vectors and BM25 sparse indices.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">3</div>
-            <h4>Rerank & Fusion</h4>
-            <p>Reciprocal Rank Fusion and Cross-Encoders filter the highest relevance passages.</p>
+            <h4>Rerank</h4>
+            <p>RRF and Cross-Encoder layers filter candidate chunks to extract top matches.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">4</div>
-            <h4>Local LLM Generation</h4>
-            <p>Ollama runs LLM inference on the host machine to compose precise answers.</p>
+            <h4>Compose</h4>
+            <p>Ollama runs LLM inference locally on the host machine to synthesize answers.</p>
           </div>
         </div>
       </section>
