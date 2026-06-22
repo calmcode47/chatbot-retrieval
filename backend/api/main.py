@@ -146,29 +146,41 @@ async def chat(request: ChatRequest):
     history = session_store.get_history(session_id, last_n_turns=5)
 
     start = time.time()
-    result = rag_chain.query(
-        question=request.question,
-        chat_history=history,
-    )
+    try:
+        result = rag_chain.query(
+            question=request.question,
+            chat_history=history,
+        )
+    except Exception as e:
+        logger.error(f"RAG chain error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"LLM error: {str(e)}. Ensure Ollama is running with: ollama serve",
+        )
     latency_ms = (time.time() - start) * 1000
+
+    # Guard against empty LLM response
+    answer = result.get("answer", "").strip()
+    if not answer:
+        logger.warning("LLM returned empty response.")
+        answer = "⚠️ The model returned an empty response. Please try again."
 
     # Persist this turn to the DB
     session_store.add_turn(
         session_id=session_id,
         user_message=request.question,
-        assistant_message=result["answer"],
+        assistant_message=answer,
     )
 
     ctx_stats = None
     if result.get("context_window"):
-        from backend.api.schemas import ContextWindowStats
-
+        from api.schemas import ContextWindowStats
         ctx_stats = ContextWindowStats(**result["context_window"])
 
     return ChatResponse(
         question=result["question"],
         condensed_question=result.get("condensed_question", result["question"]),
-        answer=result["answer"],
+        answer=answer,
         sources=result["sources"],
         chunks_used=result["chunks_used"],
         latency_ms=round(latency_ms, 2),

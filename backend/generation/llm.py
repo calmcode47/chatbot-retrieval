@@ -10,7 +10,7 @@ def get_ollama_llm(
     model: str = "llama3.2:3b",
     base_url: str = "http://localhost:11434",
     temperature: float = 0.1,
-    streaming: bool = True,
+    streaming: bool = False,   # Keep False: .invoke() needs a complete response
     num_ctx: int = 4096,
 ) -> ChatOllama:
     """
@@ -27,6 +27,8 @@ def get_ollama_llm(
         temperature=temperature,
         streaming=streaming,
         num_ctx=num_ctx,
+        num_predict=-1,        # -1 = no token limit on generation
+        request_timeout=120.0, # Fail fast instead of hanging forever
     )
 
     # Quick health check

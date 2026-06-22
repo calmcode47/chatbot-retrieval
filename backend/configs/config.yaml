@@ -32,7 +32,7 @@ vector_store:
 retrieval:
   top_k: 5
   score_threshold: 0.3
-  rerank: true
+  rerank: false
   reranker_model: "BAAI/bge-reranker-base"
   reranker_candidates: 20       # Fetch 20, rerank to top_k
 

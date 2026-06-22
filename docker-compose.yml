@@ -39,7 +39,10 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+      # Points the Vite server-side proxy to the backend container via Docker DNS.
+      # The browser always calls /api/v1 on the same origin (port 8501);
+      # Vite forwards those requests to documind-api:8000 inside Docker's network.
+      - API_PROXY_TARGET=http://documind-api:8000
     depends_on:
       documind-api:
         condition: service_healthy
