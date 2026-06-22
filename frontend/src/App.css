@@ -8,7 +8,7 @@
 }
 
 body {
-  background-color: #090d16;
+  background-color: #030712;
   color: #e2e8f0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   overflow: hidden;
@@ -875,4 +875,77 @@ h1, h2, h3, h4, h5, h6 {
     transform: rotate(90deg);
     margin: 10px 0;
   }
+}
+
+/* --- Document Compilers Grid Layout --- */
+.doc-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.doc-type-card {
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doc-type-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.doc-type-icon-box {
+  background: rgba(45, 212, 191, 0.1);
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.doc-type-icon {
+  color: #2dd4bf;
+}
+
+.doc-compiler-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-top: 2px;
+}
+
+.doc-type-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.doc-status-checklist {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 14px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.status-check-icon {
+  color: #2dd4bf;
 }

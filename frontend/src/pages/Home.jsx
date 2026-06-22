@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { ArrowRight, Shield, Zap, Search, Layers, Database, Lock, Cpu } from "lucide-react";
+import { ArrowRight, Shield, Zap, Search, Layers, Database, Lock, Cpu, FileText, Code, CheckCircle } from "lucide-react";
 import * as THREE from "three";
 
 export default function Home({ setActivePage }) {
@@ -8,86 +8,120 @@ export default function Home({ setActivePage }) {
   useEffect(() => {
     if (!threeRef.current) return;
 
-    // --- Vector Space Wave Setup ---
+    // --- 3D Dome Document Gallery Setup ---
     const scene = new THREE.Scene();
     
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20);
-    camera.position.set(0, 2.2, 4.2);
-    camera.lookAt(0, -0.2, 0);
+    camera.position.set(0, 1.8, 4.0);
+    camera.lookAt(0, 0.2, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(400, 400);
     renderer.setPixelRatio(window.devicePixelRatio);
     threeRef.current.appendChild(renderer.domElement);
 
-    // Grid Dimensions
-    const numX = 26;
-    const numZ = 26;
-    const gap = 0.16;
-    const particleCount = numX * numZ;
+    // Master Group
+    const masterGroup = new THREE.Group();
+    scene.add(masterGroup);
 
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
+    // --- 1. Glowing Database Core ---
+    const coreGroup = new THREE.Group();
+    masterGroup.add(coreGroup);
 
-    for (let x = 0; x < numX; x++) {
-      for (let z = 0; z < numZ; z++) {
-        const i = x * numZ + z;
-        positions[i * 3] = (x - numX / 2) * gap;
-        positions[i * 3 + 1] = 0;
-        positions[i * 3 + 2] = (z - numZ / 2) * gap;
-      }
+    // Solid core
+    const coreSphereGeom = new THREE.SphereGeometry(0.5, 32, 32);
+    const coreSphereMat = new THREE.MeshBasicMaterial({
+      color: 0x3b82f6, // Cobalt Blue
+      transparent: true,
+      opacity: 0.15,
+    });
+    const coreSphere = new THREE.Mesh(coreSphereGeom, coreSphereMat);
+    coreGroup.add(coreSphere);
+
+    // Wireframe core
+    const coreWireGeom = new THREE.IcosahedronGeometry(0.52, 2);
+    const coreWireMat = new THREE.MeshBasicMaterial({
+      color: 0x2dd4bf, // Teal/Mint
+      wireframe: true,
+      transparent: true,
+      opacity: 0.35,
+    });
+    const coreWire = new THREE.Mesh(coreWireGeom, coreWireMat);
+    coreGroup.add(coreWire);
+
+    // --- 2. Dome Document Sheets Gallery ---
+    const domeGroup = new THREE.Group();
+    masterGroup.add(domeGroup);
+
+    const docCount = 18;
+    const documentMeshes = [];
+    const filamentLines = [];
+
+    // Position meshes in a hemisphere (dome)
+    for (let i = 0; i < docCount; i++) {
+      // Golden ratio placement on a hemisphere
+      const phi = Math.acos((i / docCount) * 0.9); // 0 to ~Math.PI/2 (dome shape)
+      const theta = Math.sqrt(docCount * Math.PI) * phi;
+      const radius = 1.3;
+
+      const x = radius * Math.cos(theta) * Math.sin(phi);
+      const y = radius * Math.sin(theta) * Math.sin(phi);
+      const z = radius * Math.cos(phi);
+
+      // Create a 3D Plane representing a document paper sheet
+      const sheetGeom = new THREE.PlaneGeometry(0.18, 0.24);
+      
+      // Alternate document colors: PDF (Teal), Markdown (Cobalt), TXT (Silver)
+      let sheetColor = 0x2dd4bf; // Teal
+      if (i % 3 === 1) sheetColor = 0x3b82f6; // Cobalt Blue
+      if (i % 3 === 2) sheetColor = 0x94a3b8; // Silver
+
+      const sheetMat = new THREE.MeshBasicMaterial({
+        color: sheetColor,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.6,
+      });
+
+      const sheet = new THREE.Mesh(sheetGeom, sheetMat);
+      sheet.position.set(x, y, z);
+      
+      // Force sheets to face the central database core
+      sheet.lookAt(0, 0, 0);
+      sheet.rotateX(Math.PI / 2); // Orient flat-face outwards
+      
+      domeGroup.add(sheet);
+      documentMeshes.push(sheet);
+
+      // Connect each sheet back to the database center with line filaments
+      const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, y, z)];
+      const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: sheetColor,
+        transparent: true,
+        opacity: 0.15,
+      });
+      const line = new THREE.Line(lineGeom, lineMat);
+      domeGroup.add(line);
+      filamentLines.push(lineMat);
     }
 
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-    // Custom circle glowing particle texture
-    const canvas = document.createElement("canvas");
-    canvas.width = 16;
-    canvas.height = 16;
-    const ctx = canvas.getContext("2d");
-    const gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
-    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(0.2, "rgba(99, 102, 241, 0.8)"); // Indigo
-    gradient.addColorStop(0.6, "rgba(139, 92, 246, 0.2)"); // Violet
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 16, 16);
-    const texture = new THREE.CanvasTexture(canvas);
-
-    const material = new THREE.PointsMaterial({
-      size: 0.15,
-      map: texture,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      transparent: true,
-      opacity: 0.85,
-    });
-
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
-
-    // --- Interactive Mouse Coordinates mapping ---
-    let targetMouseX = 100; 
-    let targetMouseZ = 100;
-    let currentMouseX = 100;
-    let currentMouseZ = 100;
+    // --- 3. Mouse Tilt Interaction ---
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
 
     const handleMouseMove = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      const clientX = event.clientX - rect.left;
+      const clientY = event.clientY - rect.top;
 
-      targetMouseX = x * 2.2;
-      targetMouseZ = -y * 2.2;
+      targetX = (clientX - rect.width / 2) * 0.0022;
+      targetY = (clientY - rect.height / 2) * 0.0022;
     };
 
-    const handleMouseLeave = () => {
-      targetMouseX = 100;
-      targetMouseZ = 100;
-    };
-
-    renderer.domElement.addEventListener("mousemove", handleMouseMove);
-    renderer.domElement.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("mousemove", handleMouseMove);
 
     // --- Animation Loop ---
     let animationId;
@@ -95,42 +129,29 @@ export default function Home({ setActivePage }) {
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime() * 1.4;
+      const time = clock.getElapsedTime();
 
-      const positionsAttr = points.geometry.attributes.position;
-      const array = positionsAttr.array;
+      // Spin the database core
+      coreGroup.rotation.y += 0.006;
+      coreGroup.rotation.x += 0.003;
 
-      // Smooth mouse coordinates interpolation
-      currentMouseX += (targetMouseX - currentMouseX) * 0.08;
-      currentMouseZ += (targetMouseZ - currentMouseZ) * 0.08;
+      // Orbit the dome gallery of documents
+      domeGroup.rotation.y = time * 0.05;
 
-      for (let x = 0; x < numX; x++) {
-        for (let z = 0; z < numZ; z++) {
-          const i = x * numZ + z;
-          const posX = (x - numX / 2) * gap;
-          const posZ = (z - numZ / 2) * gap;
+      // Pulsing effect for the documents
+      documentMeshes.forEach((mesh, index) => {
+        mesh.material.opacity = 0.45 + Math.sin(time * 2.5 + index) * 0.2;
+      });
 
-          // Compute mathematical wave equation
-          let y = Math.sin(posX * 1.5 + time) * 0.15 + 
-                  Math.cos(posZ * 1.5 + time * 0.7) * 0.1;
+      // Smooth tracking interpolation
+      currentX += (targetX - currentX) * 0.06;
+      currentY += (targetY - currentY) * 0.06;
 
-          // Compute distance to pointer to create a ripple/indentation effect
-          const dx = posX - currentMouseX;
-          const dz = posZ - currentMouseZ;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist < 1.2) {
-            const pullForce = (1.2 - dist) * 0.28;
-            y -= pullForce; // indentation
-          }
+      masterGroup.rotation.y = currentX;
+      masterGroup.rotation.x = currentY;
 
-          array[i * 3 + 1] = y;
-        }
-      }
-
-      positionsAttr.needsUpdate = true;
-
-      // Rotate points grid slightly over time
-      points.rotation.y = time * 0.04;
+      // Gentle hover floating
+      masterGroup.position.y = Math.sin(time * 0.8) * 0.06;
 
       renderer.render(scene, camera);
     };
@@ -140,12 +161,9 @@ export default function Home({ setActivePage }) {
     // --- Cleanup ---
     return () => {
       cancelAnimationFrame(animationId);
-      if (renderer && renderer.domElement) {
-        renderer.domElement.removeEventListener("mousemove", handleMouseMove);
-        renderer.domElement.removeEventListener("mouseleave", handleMouseLeave);
-        if (threeRef.current) {
-          threeRef.current.removeChild(renderer.domElement);
-        }
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (renderer && renderer.domElement && threeRef.current) {
+        threeRef.current.removeChild(renderer.domElement);
       }
       scene.clear();
     };
@@ -154,23 +172,44 @@ export default function Home({ setActivePage }) {
   const features = [
     {
       icon: Lock,
-      title: "Isolated Security",
-      desc: "Documents are processed locally in your container environment, avoiding third-party servers and cloud API leaks.",
+      title: "100% Local Ingestion",
+      desc: "All indexing, token parsing, and vector calculations run strictly inside your local Docker workspace.",
     },
     {
       icon: Cpu,
-      title: "Metal & CUDA Acceleration",
-      desc: "Automatically routes embedding generation pipelines to host-native hardware acceleration (MPS/CPU).",
+      title: "Host GPU Routing",
+      desc: "Leverages the host's Apple Silicon GPU (MPS) to speed up Sentence-Transformer embedding computations.",
     },
     {
       icon: Search,
-      title: "Hybrid Match Index",
-      desc: "Balances semantic vectors and sparse text index channels using Reciprocal Rank Fusion.",
+      title: "Hybrid Sparse/Dense Core",
+      desc: "Integrates ChromaDB dense embeddings and BM25 sparse indexes with Reciprocal Rank Fusion.",
     },
     {
       icon: Layers,
       title: "Attention-Based Rerank",
-      desc: "Refines candidates through a local Cross-Encoder transformer before drafting context prompts.",
+      desc: "Scores retrieved passages with a Cross-Encoder transformer to prevent LLM hallucinations.",
+    },
+  ];
+
+  const docTypes = [
+    {
+      icon: FileText,
+      type: "PDF Files",
+      parsing: "PyMuPDF (fitz) Extractor",
+      strategy: "Extracts textual contents, structures raw table grids, and parses semantic layout hierarchies.",
+    },
+    {
+      icon: Code,
+      type: "Markdown Docs",
+      parsing: "Unstructured MD Parser",
+      strategy: "Identifies heading hierarchies, isolates bullet listings, and maintains code-snippet block formatting.",
+    },
+    {
+      icon: FileText,
+      type: "Plain Text (TXT)",
+      parsing: "UTF-8 Stream Reader",
+      strategy: "Processes raw log outputs, configuration sheets, and plain textual descriptions line-by-line.",
     },
   ];
 
@@ -184,11 +223,11 @@ export default function Home({ setActivePage }) {
             <span>Local RAG Pipeline</span>
           </div>
           <h1 className="hero-title">
-            Enterprise Q&A <br />
+            Frictionless Q&A <br />
             <span className="gradient-text">Fully Encrypted</span>
           </h1>
           <p className="hero-subtitle">
-            An isolated Retrieval-Augmented Generation workspace for indexing and exploring private PDF, TXT, and Markdown files locally.
+            An isolated Retrieval-Augmented Generation workspace for indexing and exploring PDF, TXT, and Markdown files locally.
           </p>
           <div className="hero-actions">
             <button
@@ -206,7 +245,7 @@ export default function Home({ setActivePage }) {
         </div>
       </section>
 
-      {/* Highlights Grid */}
+      {/* RAG Deep Dive & Architecture Section */}
       <section className="features-section">
         <h2 className="features-title">Technical Highlights</h2>
         <p className="features-subtitle">
@@ -228,32 +267,69 @@ export default function Home({ setActivePage }) {
         </div>
       </section>
 
-      {/* Process Architecture Flow */}
+      {/* Expanded Document Gallery Section */}
+      <section className="document-types-section">
+        <h2 className="features-title">Supported Document Compilers</h2>
+        <p className="features-subtitle">
+          Custom ingestion engines process and map unique layouts into vectorized chunks.
+        </p>
+        <div className="doc-types-grid">
+          {docTypes.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div key={idx} className="doc-type-card glass-panel">
+                <div className="doc-type-header">
+                  <div className="doc-type-icon-box">
+                    <Icon size={20} className="doc-type-icon" />
+                  </div>
+                  <div>
+                    <h4>{item.type}</h4>
+                    <span className="doc-compiler-label">{item.parsing}</span>
+                  </div>
+                </div>
+                <p className="doc-type-desc">{item.strategy}</p>
+                <div className="doc-status-checklist">
+                  <div className="status-item">
+                    <CheckCircle size={14} className="status-check-icon" />
+                    <span>Parent-Child Chunking</span>
+                  </div>
+                  <div className="status-item">
+                    <CheckCircle size={14} className="status-check-icon" />
+                    <span>Metadata Registration</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* RAG Processing Visual Flow */}
       <section className="flow-section glass-panel">
         <h2 className="flow-title">Pipeline Architecture</h2>
         <div className="flow-steps">
           <div className="flow-step">
             <div className="step-num">1</div>
-            <h4>Ingest</h4>
+            <h4>Ingestion & Chunking</h4>
             <p>Documents are split into hierarchical parent-child context structures.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">2</div>
-            <h4>Index</h4>
+            <h4>Hybrid Indexing</h4>
             <p>Parallel processing creates ChromaDB vectors and BM25 sparse indices.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">3</div>
-            <h4>Rerank</h4>
-            <p>RRF and Cross-Encoder layers filter candidate chunks to extract top matches.</p>
+            <h4>Rerank & Fusion</h4>
+            <p>Reciprocal Rank Fusion and Cross-Encoders filter the highest relevance passages.</p>
           </div>
           <div className="flow-arrow">➔</div>
           <div className="flow-step">
             <div className="step-num">4</div>
-            <h4>Compose</h4>
-            <p>Ollama runs LLM inference locally on the host machine to synthesize answers.</p>
+            <h4>Local LLM Generation</h4>
+            <p>Ollama runs LLM inference locally on the host machine to compose precise answers.</p>
           </div>
         </div>
       </section>
