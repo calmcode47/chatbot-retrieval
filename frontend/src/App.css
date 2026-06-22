@@ -760,3 +760,119 @@ h1, h2, h3, h4, h5, h6 {
     transform: rotate(360deg);
   }
 }
+
+/* --- New Hero Badge & Flow Steps Styling --- */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(103, 132, 255, 0.1);
+  border: 1px solid rgba(103, 132, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6784ff;
+  margin-bottom: 24px;
+  animation: logo-glow 3s infinite ease-in-out;
+}
+
+.badge-icon {
+  color: #00f2fe;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 15px;
+}
+
+.features-subtitle {
+  text-align: center;
+  font-size: 16px;
+  color: #94a3b8;
+  margin-top: -20px;
+  margin-bottom: 30px;
+}
+
+.flow-section {
+  padding: 40px;
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.flow-title {
+  font-size: 28px;
+  text-align: center;
+}
+
+.flow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 20px;
+}
+
+.flow-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 24px 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flow-step:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 242, 254, 0.2);
+  background: rgba(0, 242, 254, 0.02);
+}
+
+.step-num {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #00f2fe 0%, #6784ff 100%);
+  color: #050608;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.flow-step h4 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #ffffff;
+}
+
+.flow-step p {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.flow-arrow {
+  font-size: 24px;
+  color: #64748b;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .flow-steps {
+    flex-direction: column;
+  }
+  .flow-arrow {
+    transform: rotate(90deg);
+    margin: 10px 0;
+  }
+}
