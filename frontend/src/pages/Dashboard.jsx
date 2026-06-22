@@ -97,6 +97,8 @@ export default function Dashboard() {
     () => localStorage.getItem("documind_session_id") || null
   );
   const [sessionInfo, setSessionInfo] = useState(null);
+  const [expandedSources, setExpandedSources] = useState({});
+  const [uploadError, setUploadError] = useState("");
 
   const chatEndRef = useRef(null);
 
