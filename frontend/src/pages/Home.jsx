@@ -1,335 +1,222 @@
-import React, { useEffect, useRef } from "react";
-import { ArrowRight, Shield, Zap, Search, Layers, Database, Lock, Cpu, FileText, Code, CheckCircle } from "lucide-react";
-import * as THREE from "three";
+import React, { useState, useEffect } from "react";
+import { FileText, Hash, AlignLeft, FileStack, Globe, BookOpen, Database, Search, Layers, Shield, Cpu } from "lucide-react";
+import KnowledgeVault from "../components/KnowledgeVault";
+
+const DOC_TYPES = [
+  { Icon: FileText, label: ".PDF", type: "PDF Documents", parser: "PyMuPDF (fitz) Parser", description: "Full page text and layout extraction with section preservation." },
+  { Icon: Hash, label: ".MD", type: "Markdown Files", parser: "Unstructured MD Compiler", description: "Heading-aware parsing with markdown syntax and frontmatter isolation." },
+  { Icon: AlignLeft, label: ".TXT", type: "Plain Text", parser: "UTF-8 Stream Reader", description: "Clean text reader with paragraph detection and formatting cleanup." },
+  { Icon: FileStack, label: ".DOCX", type: "Word Documents", parser: "Unstructured Docx Parser", description: "Style-preserving text extraction for standard docx document packages." },
+  { Icon: Globe, label: "URL", type: "Web Pages", parser: "WebBaseLoader Scraper", description: "Web scrape with sanitization and HTML boilerplate tag stripping." },
+  { Icon: BookOpen, label: "Research", type: "Academic Papers", parser: "PyMuPDF + spaCy NER", description: "Scientific papers with metadata, citations, and entity extraction." },
+];
+
+const PIPELINE_STEPS = [
+  { id: "ingest", Icon: Database, label: "INGEST", title: "Ingestion Core", description: "Format loaders parse, split, and embed documents into ChromaDB." },
+  { id: "retrieve", Icon: Search, label: "RETRIEVE", title: "Hybrid Search", description: "Parallel BM25 and dense retrieval merged using Reciprocal Rank Fusion." },
+  { id: "rerank", Icon: Layers, label: "RERANK", title: "Neural Rerank", description: "A Cross-Encoder model scores query-chunk relationships for factual alignment." },
+  { id: "ground", Icon: Shield, label: "GROUND", title: "Prompt Grounding", description: "Context is fitted to the window and injected into strict system guidelines." },
+  { id: "generate", Icon: Cpu, label: "GENERATE", title: "Local Synthesis", description: "Ollama executes the model locally on-device via Apple Silicon." },
+];
 
 export default function Home({ setActivePage }) {
-  const threeRef = useRef(null);
+  const [vaultHovered, setVaultHovered] = useState(false);
 
   useEffect(() => {
-    if (!threeRef.current) return;
+    // Basic Intersection Observer for Scroll Reveals
+    const reveals = document.querySelectorAll(".reveal");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    reveals.forEach((el) => observer.observe(el));
 
-    // --- 3D Dome Document Gallery Setup ---
-    const scene = new THREE.Scene();
-    
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20);
-    camera.position.set(0, 1.8, 4.0);
-    camera.lookAt(0, 0.2, 0);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(400, 400);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    threeRef.current.appendChild(renderer.domElement);
-
-    // Master Group
-    const masterGroup = new THREE.Group();
-    scene.add(masterGroup);
-
-    // --- 1. Glowing Database Core ---
-    const coreGroup = new THREE.Group();
-    masterGroup.add(coreGroup);
-
-    // Solid core
-    const coreSphereGeom = new THREE.SphereGeometry(0.5, 32, 32);
-    const coreSphereMat = new THREE.MeshBasicMaterial({
-      color: 0x3b82f6, // Cobalt Blue
-      transparent: true,
-      opacity: 0.15,
-    });
-    const coreSphere = new THREE.Mesh(coreSphereGeom, coreSphereMat);
-    coreGroup.add(coreSphere);
-
-    // Wireframe core
-    const coreWireGeom = new THREE.IcosahedronGeometry(0.52, 2);
-    const coreWireMat = new THREE.MeshBasicMaterial({
-      color: 0x2dd4bf, // Teal/Mint
-      wireframe: true,
-      transparent: true,
-      opacity: 0.35,
-    });
-    const coreWire = new THREE.Mesh(coreWireGeom, coreWireMat);
-    coreGroup.add(coreWire);
-
-    // --- 2. Dome Document Sheets Gallery ---
-    const domeGroup = new THREE.Group();
-    masterGroup.add(domeGroup);
-
-    const docCount = 18;
-    const documentMeshes = [];
-    const filamentLines = [];
-
-    // Position meshes in a hemisphere (dome)
-    for (let i = 0; i < docCount; i++) {
-      // Golden ratio placement on a hemisphere
-      const phi = Math.acos((i / docCount) * 0.9); // 0 to ~Math.PI/2 (dome shape)
-      const theta = Math.sqrt(docCount * Math.PI) * phi;
-      const radius = 1.3;
-
-      const x = radius * Math.cos(theta) * Math.sin(phi);
-      const y = radius * Math.sin(theta) * Math.sin(phi);
-      const z = radius * Math.cos(phi);
-
-      // Create a 3D Plane representing a document paper sheet
-      const sheetGeom = new THREE.PlaneGeometry(0.18, 0.24);
-      
-      // Alternate document colors: PDF (Teal), Markdown (Cobalt), TXT (Silver)
-      let sheetColor = 0x2dd4bf; // Teal
-      if (i % 3 === 1) sheetColor = 0x3b82f6; // Cobalt Blue
-      if (i % 3 === 2) sheetColor = 0x94a3b8; // Silver
-
-      const sheetMat = new THREE.MeshBasicMaterial({
-        color: sheetColor,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.6,
-      });
-
-      const sheet = new THREE.Mesh(sheetGeom, sheetMat);
-      sheet.position.set(x, y, z);
-      
-      // Force sheets to face the central database core
-      sheet.lookAt(0, 0, 0);
-      sheet.rotateX(Math.PI / 2); // Orient flat-face outwards
-      
-      domeGroup.add(sheet);
-      documentMeshes.push(sheet);
-
-      // Connect each sheet back to the database center with line filaments
-      const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, y, z)];
-      const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: sheetColor,
-        transparent: true,
-        opacity: 0.15,
-      });
-      const line = new THREE.Line(lineGeom, lineMat);
-      domeGroup.add(line);
-      filamentLines.push(lineMat);
-    }
-
-    // --- 3. Mouse Tilt Interaction ---
-    let targetX = 0;
-    let targetY = 0;
-    let currentX = 0;
-    let currentY = 0;
-
-    const handleMouseMove = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const clientX = event.clientX - rect.left;
-      const clientY = event.clientY - rect.top;
-
-      targetX = (clientX - rect.width / 2) * 0.0022;
-      targetY = (clientY - rect.height / 2) * 0.0022;
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-
-    // --- Animation Loop ---
-    let animationId;
-    const clock = new THREE.Clock();
-
-    const animate = () => {
-      animationId = requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
-
-      // Spin the database core
-      coreGroup.rotation.y += 0.006;
-      coreGroup.rotation.x += 0.003;
-
-      // Orbit the dome gallery of documents
-      domeGroup.rotation.y = time * 0.05;
-
-      // Pulsing effect for the documents
-      documentMeshes.forEach((mesh, index) => {
-        mesh.material.opacity = 0.45 + Math.sin(time * 2.5 + index) * 0.2;
-      });
-
-      // Smooth tracking interpolation
-      currentX += (targetX - currentX) * 0.06;
-      currentY += (targetY - currentY) * 0.06;
-
-      masterGroup.rotation.y = currentX;
-      masterGroup.rotation.x = currentY;
-
-      // Gentle hover floating
-      masterGroup.position.y = Math.sin(time * 0.8) * 0.06;
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    // --- Cleanup ---
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("mousemove", handleMouseMove);
-      if (renderer && renderer.domElement && threeRef.current) {
-        threeRef.current.removeChild(renderer.domElement);
-      }
-      scene.clear();
-    };
+    return () => observer.disconnect();
   }, []);
 
-  const features = [
-    {
-      icon: Lock,
-      title: "100% Local Ingestion",
-      desc: "All indexing, token parsing, and vector calculations run strictly inside your local Docker workspace.",
-    },
-    {
-      icon: Cpu,
-      title: "Host GPU Routing",
-      desc: "Leverages the host's Apple Silicon GPU (MPS) to speed up Sentence-Transformer embedding computations.",
-    },
-    {
-      icon: Search,
-      title: "Hybrid Sparse/Dense Core",
-      desc: "Integrates ChromaDB dense embeddings and BM25 sparse indexes with Reciprocal Rank Fusion.",
-    },
-    {
-      icon: Layers,
-      title: "Attention-Based Rerank",
-      desc: "Scores retrieved passages with a Cross-Encoder transformer to prevent LLM hallucinations.",
-    },
-  ];
-
-  const docTypes = [
-    {
-      icon: FileText,
-      type: "PDF Files",
-      parsing: "PyMuPDF (fitz) Extractor",
-      strategy: "Extracts textual contents, structures raw table grids, and parses semantic layout hierarchies.",
-    },
-    {
-      icon: Code,
-      type: "Markdown Docs",
-      parsing: "Unstructured MD Parser",
-      strategy: "Identifies heading hierarchies, isolates bullet listings, and maintains code-snippet block formatting.",
-    },
-    {
-      icon: FileText,
-      type: "Plain Text (TXT)",
-      parsing: "UTF-8 Stream Reader",
-      strategy: "Processes raw log outputs, configuration sheets, and plain textual descriptions line-by-line.",
-    },
-  ];
-
   return (
-    <div className="home-container">
-      {/* Hero Section */}
-      <section className="hero-section">
-        <div className="hero-text-content">
-          <div className="hero-badge">
-            <Shield size={13} className="badge-icon" />
-            <span>Local RAG Pipeline</span>
-          </div>
-          <h1 className="hero-title">
-            Frictionless Q&A <br />
-            <span className="gradient-text">Fully Encrypted</span>
-          </h1>
-          <p className="hero-subtitle">
-            An isolated Retrieval-Augmented Generation workspace for indexing and exploring PDF, TXT, and Markdown files locally.
-          </p>
-          <div className="hero-actions">
-            <button
-              className="cta-button"
-              onClick={() => setActivePage("dashboard")}
+    <div className="home-container" style={{ padding: 0 }}>
+      {/* Section 1 — Hero */}
+      <section className="section hero-section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <div className="container">
+          <div className="hero-grid">
+            {/* Left column */}
+            <div className="hero-left">
+              <p className="eyebrow reveal">// LOCAL  ·  PRIVATE  ·  INTELLIGENT</p>
+
+              <h1 className="display-xl hero-title reveal reveal-delay-1">
+                DOCU<span style={{ color: 'var(--amber)' }}>MIND</span>
+              </h1>
+              <h2 className="display-lg hero-subtitle reveal reveal-delay-2">
+                KNOWLEDGE<br />AT ZERO EXPOSURE
+              </h2>
+
+              <p className="body-lg hero-body reveal reveal-delay-3" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-lg)' }}>
+                A fully local RAG system that answers questions over your documents
+                without sending a single byte to the cloud. Built on Apple Silicon.
+                Powered by open-weight models.
+              </p>
+
+              <div className="hero-chips reveal reveal-delay-4">
+                <span className="chip">◉ 100% Local</span>
+                <span className="chip">✦ Zero APIs</span>
+                <span className="chip">⬡ MPS Accelerated</span>
+              </div>
+
+              <div className="hero-ctas reveal reveal-delay-4">
+                <button className="btn-primary" onClick={() => setActivePage('dashboard')}>
+                  Enter Dashboard
+                </button>
+                <button className="btn-ghost" onClick={() => setActivePage('about')}>
+                  View Architecture
+                </button>
+              </div>
+
+              {/* DM Mono build metadata */}
+              <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-xl)' }}>
+                v1.7.0  ·  llama3.2:3b  ·  BAAI/bge-base-en-v1.5  ·  ChromaDB
+              </p>
+            </div>
+
+            {/* Right column — Knowledge Vault */}
+            <div
+              className="hero-right"
+              onMouseEnter={() => setVaultHovered(true)}
+              onMouseLeave={() => setVaultHovered(false)}
             >
-              <span>Enter Workspace</span>
-              <ArrowRight size={18} />
+              <KnowledgeVault isHovered={vaultHovered} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2 — Document Gallery */}
+      <section className="section" style={{ background: 'linear-gradient(180deg, var(--void) 0%, rgba(245,158,11,0.02) 50%, var(--void) 100%)' }}>
+        <div className="container">
+          <div style={{ marginBottom: 'var(--sp-2xl)' }}>
+            <p className="eyebrow reveal">// Supported Formats</p>
+            <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)' }}>
+              EVERY FORMAT.<br />
+              <span style={{ color: 'var(--text-secondary)' }}>FULLY PARSED.</span>
+            </h2>
+            <p className="body-base reveal reveal-delay-2" style={{ color: 'var(--text-secondary)', maxWidth: 480, marginTop: 'var(--sp-md)' }}>
+              DocuMind extracts content from your documents using structure-aware parsers, not raw text dumps.
+            </p>
+          </div>
+
+          <div className="doc-gallery-grid">
+            {DOC_TYPES.map((doc, i) => (
+              <div
+                key={doc.label}
+                className={`axiom-card doc-card reveal reveal-delay-${i % 4 + 1}`}
+              >
+                <div className="doc-card-header">
+                  <div className="doc-card-icon">
+                    <doc.Icon size={22} />
+                  </div>
+                  <span className="mono-sm" style={{ color: 'var(--amber)' }}>
+                    {doc.label}
+                  </span>
+                </div>
+                <p className="heading-ui" style={{ marginTop: 'var(--sp-md)', fontSize: '1.1rem' }}>
+                  {doc.type}
+                </p>
+                <p className="body-base" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-sm)', fontSize: '0.875rem' }}>
+                  {doc.description}
+                </p>
+                <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-lg)' }}>
+                  {doc.parser}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 3 — Pipeline */}
+      <section className="section pipeline-section">
+        <div className="container">
+          <p className="eyebrow reveal">// Under the hood</p>
+          <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)', marginBottom: 'var(--sp-2xl)' }}>
+            THE PIPELINE
+          </h2>
+
+          <div className="pipeline-track">
+            {PIPELINE_STEPS.map((step, i) => (
+              <div key={step.id} className={`pipeline-step reveal reveal-delay-${i + 1}`}>
+                {/* Step number */}
+                <div className="pipeline-num">
+                  <span className="mono-sm" style={{ color: 'var(--amber)' }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                </div>
+
+                {/* Connector line (not after last item) */}
+                {i < PIPELINE_STEPS.length - 1 && (
+                  <div className="pipeline-connector" />
+                )}
+
+                {/* Card */}
+                <div className="axiom-card pipeline-card">
+                  <div className="doc-card-icon" style={{ marginBottom: 'var(--sp-md)' }}>
+                    <step.Icon size={20} />
+                  </div>
+                  <p className="mono-sm" style={{ color: 'var(--amber)' }}>{step.label}</p>
+                  <p className="heading-ui" style={{ marginTop: 'var(--sp-xs)', fontSize: '1rem' }}>
+                    {step.title}
+                  </p>
+                  <p className="body-base" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-sm)', fontSize: '0.85rem' }}>
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4 — Metrics */}
+      <section className="section" style={{ paddingTop: 'var(--sp-2xl)', paddingBottom: 'var(--sp-2xl)' }}>
+        <div className="container">
+          <div className="divider" style={{ marginBottom: 'var(--sp-2xl)' }} />
+          <div className="metrics-grid">
+            {[
+              { value: '0',           unit: 'External APIs',     label: 'All inference runs on-device.' },
+              { value: '100%',        unit: 'Local Processing',  label: 'No data leaves your machine.' },
+              { value: 'MPS',         unit: 'GPU Acceleration',  label: 'Apple M-series Neural Engine.' },
+              { value: 'RAGAS',       unit: 'Evaluated Quality', label: 'Faithfulness + precision metrics.' },
+            ].map((m, i) => (
+              <div key={i} className={`axiom-card metrics-card reveal reveal-delay-${i + 1}`}>
+                <p className="display-md" style={{ color: 'var(--amber)' }}>{m.value}</p>
+                <p className="mono-base"  style={{ marginTop: 'var(--sp-xs)', color: 'var(--text-primary)' }}>{m.unit}</p>
+                <p className="mono-sm"   style={{ marginTop: 'var(--sp-sm)', color: 'var(--text-muted)' }}>{m.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="divider" style={{ marginTop: 'var(--sp-2xl)' }} />
+        </div>
+      </section>
+
+      {/* Section 5 — CTA */}
+      <section className="section" style={{ textAlign: 'center', minHeight: '40vh', display: 'flex', alignItems: 'center' }}>
+        <div className="container">
+          <p className="eyebrow reveal">// Ready to use</p>
+          <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)', marginBottom: 'var(--sp-lg)' }}>
+            UPLOAD. ASK. GET ANSWERS.
+          </h2>
+          <p className="body-lg reveal reveal-delay-2" style={{ color: 'var(--text-secondary)', maxWidth: 520, margin: '0 auto var(--sp-xl)' }}>
+            Drop in your documents and start asking questions. No setup beyond what you've already built.
+          </p>
+          <div className="reveal reveal-delay-3" style={{ display: 'flex', gap: 'var(--sp-md)', justifyContent: 'center' }}>
+            <button className="btn-primary" onClick={() => setActivePage('dashboard')}>
+              Open Dashboard
             </button>
-          </div>
-        </div>
-        <div className="hero-3d-visual">
-          <div ref={threeRef} className="spinning-octahedron" />
-          <div className="glow-shadow" />
-        </div>
-      </section>
-
-      {/* RAG Deep Dive & Architecture Section */}
-      <section className="features-section">
-        <h2 className="features-title">Technical Highlights</h2>
-        <p className="features-subtitle">
-          Constructed with a privacy-centric pipeline for rapid factual document retrieval.
-        </p>
-        <div className="features-grid">
-          {features.map((feat, idx) => {
-            const Icon = feat.icon;
-            return (
-              <div key={idx} className="feature-card glass-panel">
-                <div className="feature-icon-wrapper">
-                  <Icon size={22} className="feature-icon" />
-                </div>
-                <h3 className="feature-card-title">{feat.title}</h3>
-                <p className="feature-card-desc">{feat.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Expanded Document Gallery Section */}
-      <section className="document-types-section">
-        <h2 className="features-title">Supported Document Compilers</h2>
-        <p className="features-subtitle">
-          Custom ingestion engines process and map unique layouts into vectorized chunks.
-        </p>
-        <div className="doc-types-grid">
-          {docTypes.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div key={idx} className="doc-type-card glass-panel">
-                <div className="doc-type-header">
-                  <div className="doc-type-icon-box">
-                    <Icon size={20} className="doc-type-icon" />
-                  </div>
-                  <div>
-                    <h4>{item.type}</h4>
-                    <span className="doc-compiler-label">{item.parsing}</span>
-                  </div>
-                </div>
-                <p className="doc-type-desc">{item.strategy}</p>
-                <div className="doc-status-checklist">
-                  <div className="status-item">
-                    <CheckCircle size={14} className="status-check-icon" />
-                    <span>Parent-Child Chunking</span>
-                  </div>
-                  <div className="status-item">
-                    <CheckCircle size={14} className="status-check-icon" />
-                    <span>Metadata Registration</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* RAG Processing Visual Flow */}
-      <section className="flow-section glass-panel">
-        <h2 className="flow-title">Pipeline Architecture</h2>
-        <div className="flow-steps">
-          <div className="flow-step">
-            <div className="step-num">1</div>
-            <h4>Ingestion & Chunking</h4>
-            <p>Documents are split into hierarchical parent-child context structures.</p>
-          </div>
-          <div className="flow-arrow">➔</div>
-          <div className="flow-step">
-            <div className="step-num">2</div>
-            <h4>Hybrid Indexing</h4>
-            <p>Parallel processing creates ChromaDB vectors and BM25 sparse indices.</p>
-          </div>
-          <div className="flow-arrow">➔</div>
-          <div className="flow-step">
-            <div className="step-num">3</div>
-            <h4>Rerank & Fusion</h4>
-            <p>Reciprocal Rank Fusion and Cross-Encoders filter the highest relevance passages.</p>
-          </div>
-          <div className="flow-arrow">➔</div>
-          <div className="flow-step">
-            <div className="step-num">4</div>
-            <h4>Local LLM Generation</h4>
-            <p>Ollama runs LLM inference locally on the host machine to compose precise answers.</p>
           </div>
         </div>
       </section>
