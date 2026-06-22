@@ -5,13 +5,11 @@ Returns a list of LangChain Document objects.
 
 from pathlib import Path
 from typing import List
+
+from langchain_community.document_loaders import (DirectoryLoader,
+                                                  PyMuPDFLoader, TextLoader,
+                                                  WebBaseLoader)
 from langchain_core.documents import Document
-from langchain_community.document_loaders import (
-    PyMuPDFLoader,
-    TextLoader,
-    WebBaseLoader,
-    DirectoryLoader,
-)
 from loguru import logger
 
 
@@ -59,4 +57,6 @@ def load_file(file_path: str) -> List[Document]:
     elif file_path.startswith("http"):
         return load_url(file_path)
     else:
-        raise ValueError(f"Unsupported file type: {ext}. Supported: .pdf, .txt, .md, URLs")
+        raise ValueError(
+            f"Unsupported file type: {ext}. Supported: .pdf, .txt, .md, URLs"
+        )

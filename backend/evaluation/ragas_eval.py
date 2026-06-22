@@ -18,35 +18,35 @@ Run with: make eval
 import json
 import os
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 from loguru import logger
 
-
 # ── Configuration ────────────────────────────────────────────────────
-RAG_MODEL           = "llama3.2:3b"      # Model used by your RAG pipeline
-JUDGE_MODEL         = "mistral:7b"       # Model used as RAGAS judge
-OLLAMA_BASE_URL     = "http://localhost:11434"
-EVAL_DATASET_PATH   = "evaluation/eval_dataset.json"
-RESULTS_PATH        = "evaluation/ragas_results.json"
+RAG_MODEL = "llama3.2:3b"  # Model used by your RAG pipeline
+JUDGE_MODEL = "mistral:7b"  # Model used as RAGAS judge
+OLLAMA_BASE_URL = "http://localhost:11434"
+EVAL_DATASET_PATH = "evaluation/eval_dataset.json"
+RESULTS_PATH = "evaluation/ragas_results.json"
 
-TOP_K               = 5
+TOP_K = 5
 RERANKER_CANDIDATES = 20
-MIN_QUESTIONS       = 10                 # Refuse to run below this count
+MIN_QUESTIONS = 10  # Refuse to run below this count
 
 # Targets for each metric
 TARGETS = {
-    "faithfulness":      0.80,
-    "answer_relevancy":  0.80,
+    "faithfulness": 0.80,
+    "answer_relevancy": 0.80,
     "context_precision": 0.70,
-    "context_recall":    0.70,
+    "context_recall": 0.70,
 }
 
 DESCRIPTIONS = {
-    "faithfulness":      "Is the answer grounded in context? (anti-hallucination)",
-    "answer_relevancy":  "Does the answer address the question?",
+    "faithfulness": "Is the answer grounded in context? (anti-hallucination)",
+    "answer_relevancy": "Does the answer address the question?",
     "context_precision": "Were retrieved chunks relevant? (no noise)",
-    "context_recall":    "Were the right chunks retrieved? (completeness)",
+    "context_recall": "Were the right chunks retrieved? (completeness)",
 }
 
 
@@ -76,19 +76,18 @@ def load_eval_dataset() -> list:
 def build_ragas_dataset(eval_data: list) -> "Dataset":
     """Run each question through the RAG pipeline and collect answers + contexts."""
     from datasets import Dataset
-
-    from ingestion.embedder import EmbeddingService
-    from retrieval.vector_store import VectorStore
-    from retrieval.reranker import CrossEncoderReranker
-    from retrieval.context_builder import ContextBuilder
     from generation.prompt_templates import get_rag_prompt
+    from ingestion.embedder import EmbeddingService
     from langchain_ollama import ChatOllama
+    from retrieval.context_builder import ContextBuilder
+    from retrieval.reranker import CrossEncoderReranker
+    from retrieval.vector_store import VectorStore
 
     embedder = EmbeddingService()
-    store    = VectorStore()
+    store = VectorStore()
     reranker = CrossEncoderReranker()
-    builder  = ContextBuilder()
-    prompt   = get_rag_prompt()
+    builder = ContextBuilder()
+    prompt = get_rag_prompt()
 
     # Use the RAG model (small, fast) — this is not the judge
     rag_llm = ChatOllama(
@@ -98,20 +97,24 @@ def build_ragas_dataset(eval_data: list) -> "Dataset":
     )
 
     if store.count == 0:
-        raise RuntimeError("Vector store is empty. Run 'make ingest' before evaluating.")
+        raise RuntimeError(
+            "Vector store is empty. Run 'make ingest' before evaluating."
+        )
 
     questions, ground_truths, answers, contexts = [], [], [], []
 
-    logger.info(f"Running {len(eval_data)} questions through RAG pipeline (model: {RAG_MODEL})...")
+    logger.info(
+        f"Running {len(eval_data)} questions through RAG pipeline (model: {RAG_MODEL})..."
+    )
 
     for i, item in enumerate(eval_data):
-        question     = item["question"]
+        question = item["question"]
         ground_truth = item["ground_truth"]
 
         logger.info(f"  [{i+1}/{len(eval_data)}] {question[:70]}")
 
         try:
-            q_vec   = embedder.embed(question)
+            q_vec = embedder.embed(question)
             results = store.search(q_vec, top_k=RERANKER_CANDIDATES)
 
             if reranker and results:
@@ -119,11 +122,11 @@ def build_ragas_dataset(eval_data: list) -> "Dataset":
 
             # score_threshold=0 during eval — we want all chunks judged by RAGAS
             context_str, _ = builder.build(results, score_threshold=0.0)
-            context_chunks  = [r["document"] for r in results]
+            context_chunks = [r["document"] for r in results]
 
             messages = prompt.format_messages(context=context_str, question=question)
             response = rag_llm.invoke(messages)
-            answer   = response.content.strip()
+            answer = response.content.strip()
 
             questions.append(question)
             ground_truths.append(ground_truth)
@@ -135,16 +138,20 @@ def build_ragas_dataset(eval_data: list) -> "Dataset":
             continue
 
     if not questions:
-        raise RuntimeError("No questions processed successfully. Check pipeline and Ollama.")
+        raise RuntimeError(
+            "No questions processed successfully. Check pipeline and Ollama."
+        )
 
     logger.success(f"Pipeline complete. {len(questions)} answers collected.")
 
-    return Dataset.from_dict({
-        "question":     questions,
-        "answer":       answers,
-        "contexts":     contexts,
-        "ground_truth": ground_truths,
-    })
+    return Dataset.from_dict(
+        {
+            "question": questions,
+            "answer": answers,
+            "contexts": contexts,
+            "ground_truth": ground_truths,
+        }
+    )
 
 
 # ── Step 3: Run RAGAS with mistral:7b as judge ───────────────────────
@@ -162,40 +169,42 @@ def run_ragas_with_judge(dataset: "Dataset") -> dict:
     # Setting a placeholder prevents KeyError without making any external calls.
     os.environ.setdefault("OPENAI_API_KEY", "placeholder-not-used")
 
-    from ragas import evaluate
-    from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
-    from ragas.llms import LangchainLLMWrapper
-    from ragas.embeddings import LangchainEmbeddingsWrapper
-    from ragas.run_config import RunConfig
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_ollama import ChatOllama
+    from ragas import evaluate
+    from ragas.embeddings import LangchainEmbeddingsWrapper
+    from ragas.llms import LangchainLLMWrapper
+    from ragas.metrics import (answer_relevancy, context_precision,
+                               context_recall, faithfulness)
+    from ragas.run_config import RunConfig
 
     # RAGAS judge: mistral:7b (strong reasoning, reliable JSON)
     judge_llm = LangchainLLMWrapper(
         ChatOllama(
             model=JUDGE_MODEL,
             base_url=OLLAMA_BASE_URL,
-            temperature=0,      # Deterministic for evaluation
+            temperature=0,  # Deterministic for evaluation
         )
     )
 
     # BGE embeddings for answer_relevancy similarity computation
     judge_embeddings = LangchainEmbeddingsWrapper(
-        HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5"
-        )
+        HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
     )
 
-    # Critical: 180s timeout per LLM call (RAGAS complex prompts need time)
+    # Critical: 180s timeout and max_workers=1 (run sequentially to prevent local Ollama timeouts)
     run_config = RunConfig(
-        timeout=180,        # Seconds per individual LLM call — was 30s
-        max_retries=2,      # Retry on transient failure
-        max_wait=60,        # Max seconds between retries
+        timeout=180,  # Seconds per individual LLM call — was 30s
+        max_retries=2,  # Retry on transient failure
+        max_wait=60,  # Max seconds between retries
+        max_workers=1,  # Run sequentially to avoid local CPU/GPU queue timeout
     )
 
     logger.info(f"Running RAGAS evaluation (judge: {JUDGE_MODEL})...")
     logger.info("Expected duration: 10–30 minutes depending on dataset size.")
-    logger.info("This is normal — mistral:7b evaluating each question is slow but accurate.")
+    logger.info(
+        "This is normal — mistral:7b evaluating each question is slow but accurate."
+    )
 
     result = evaluate(
         dataset=dataset,
@@ -207,6 +216,7 @@ def run_ragas_with_judge(dataset: "Dataset") -> dict:
     )
 
     import math
+
     def get_average_score(scores_list):
         if not isinstance(scores_list, list):
             try:
@@ -214,16 +224,20 @@ def run_ragas_with_judge(dataset: "Dataset") -> dict:
                 return 0.0 if math.isnan(val) else val
             except Exception:
                 return 0.0
-        valid_scores = [s for s in scores_list if s is not None and isinstance(s, (int, float)) and not math.isnan(s)]
+        valid_scores = [
+            s
+            for s in scores_list
+            if s is not None and isinstance(s, (int, float)) and not math.isnan(s)
+        ]
         if not valid_scores:
             return 0.0
         return sum(valid_scores) / len(valid_scores)
 
     return {
-        "faithfulness":      get_average_score(result["faithfulness"]),
-        "answer_relevancy":  get_average_score(result["answer_relevancy"]),
+        "faithfulness": get_average_score(result["faithfulness"]),
+        "answer_relevancy": get_average_score(result["answer_relevancy"]),
         "context_precision": get_average_score(result["context_precision"]),
-        "context_recall":    get_average_score(result["context_recall"]),
+        "context_recall": get_average_score(result["context_recall"]),
     }
 
 
@@ -276,7 +290,7 @@ def print_report(scores: dict, num_questions: int, elapsed: float, judge_model: 
 
     for metric, score in scores.items():
         target = TARGETS[metric]
-        desc   = DESCRIPTIONS[metric]
+        desc = DESCRIPTIONS[metric]
         if score >= target:
             tag = f"✓  GOOD    (≥ {target:.2f})"
         elif score > 0.0:
@@ -301,13 +315,21 @@ def print_report(scores: dict, num_questions: int, elapsed: float, judge_model: 
     if any(v > 0 for v in scores.values()):
         print("  Improvement actions:")
         if 0 < scores["context_recall"] < 0.70:
-            print("  → context_recall LOW : Increase top_k to 8. Reduce child_chunk_size to 96.")
+            print(
+                "  → context_recall LOW : Increase top_k to 8. Reduce child_chunk_size to 96."
+            )
         if 0 < scores["context_precision"] < 0.70:
-            print("  → context_precision  : Raise score_threshold to 0.45. Reranker should help.")
+            print(
+                "  → context_precision  : Raise score_threshold to 0.45. Reranker should help."
+            )
         if 0 < scores["faithfulness"] < 0.80:
-            print("  → faithfulness LOW   : Strengthen system prompt. Set temperature=0.0.")
+            print(
+                "  → faithfulness LOW   : Strengthen system prompt. Set temperature=0.0."
+            )
         if 0 < scores["answer_relevancy"] < 0.80:
-            print("  → answer_relevancy   : Check RAG prompt template for off-topic drift.")
+            print(
+                "  → answer_relevancy   : Check RAG prompt template for off-topic drift."
+            )
         if all(v >= TARGETS[k] for k, v in scores.items()):
             print("  → All metrics at target. Pipeline is production quality.")
     print()
@@ -324,7 +346,7 @@ def main():
 
     # Run RAGAS judge with mistral:7b
     judge_start = time.time()
-    scores      = run_ragas_with_judge(ragas_dataset)
+    scores = run_ragas_with_judge(ragas_dataset)
     judge_elapsed = time.time() - judge_start
 
     # Print report
@@ -337,13 +359,13 @@ def main():
 
     # Save results
     output = {
-        "timestamp":            datetime.now().isoformat(),
-        "num_questions":        len(eval_data),
-        "rag_model":            RAG_MODEL,
-        "judge_model":          JUDGE_MODEL,
-        "metrics":              scores,
-        "judge_time_seconds":   round(judge_elapsed, 1),
-        "total_time_seconds":   round(time.time() - total_start, 1),
+        "timestamp": datetime.now().isoformat(),
+        "num_questions": len(eval_data),
+        "rag_model": RAG_MODEL,
+        "judge_model": JUDGE_MODEL,
+        "metrics": scores,
+        "judge_time_seconds": round(judge_elapsed, 1),
+        "total_time_seconds": round(time.time() - total_start, 1),
     }
 
     Path(RESULTS_PATH).parent.mkdir(parents=True, exist_ok=True)
@@ -355,7 +377,9 @@ def main():
     # Exit code: non-zero if any metric is critically below target
     any_failed = any(scores[k] == 0.0 for k in ["faithfulness", "answer_relevancy"])
     if any_failed:
-        logger.error("Evaluation incomplete — some metrics are still 0.0. See warnings above.")
+        logger.error(
+            "Evaluation incomplete — some metrics are still 0.0. See warnings above."
+        )
         raise SystemExit(1)
 
 

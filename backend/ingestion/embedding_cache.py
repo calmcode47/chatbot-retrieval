@@ -37,9 +37,9 @@ class EmbeddingCache:
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
         self._cache = diskcache.Cache(
             directory=cache_dir,
-            size_limit=2 * 1024 ** 3,   # 2 GB max disk usage
+            size_limit=2 * 1024**3,  # 2 GB max disk usage
         )
-        self._hits   = 0
+        self._hits = 0
         self._misses = 0
         logger.info(
             f"EmbeddingCache initialized at '{cache_dir}'. "
@@ -59,7 +59,7 @@ class EmbeddingCache:
 
         Returns the embedding as List[float] on hit, or None on miss.
         """
-        key  = self._key(text, model_name)
+        key = self._key(text, model_name)
         data = self._cache.get(key)
 
         if data is None:
@@ -102,8 +102,8 @@ class EmbeddingCache:
             hit_indices:  Indices of texts that were cache hits
             miss_indices: Indices of texts that need to be computed
         """
-        results      = []
-        hit_indices  = []
+        results = []
+        hit_indices = []
         miss_indices = []
 
         for i, text in enumerate(texts):
@@ -139,17 +139,17 @@ class EmbeddingCache:
     def disk_size_mb(self) -> float:
         """Approximate disk usage in MB."""
         try:
-            return round(self._cache.volume() / (1024 ** 2), 2)
+            return round(self._cache.volume() / (1024**2), 2)
         except Exception:
             return 0.0
 
     def stats(self) -> dict:
         return {
             "total_cached_embeddings": self.total_entries,
-            "session_hits":            self.session_hits,
-            "session_misses":          self.session_misses,
-            "session_hit_rate":        self.session_hit_rate,
-            "disk_size_mb":            self.disk_size_mb,
+            "session_hits": self.session_hits,
+            "session_misses": self.session_misses,
+            "session_hit_rate": self.session_hit_rate,
+            "disk_size_mb": self.disk_size_mb,
         }
 
     def clear(self) -> int:

@@ -4,6 +4,7 @@ Run after indexing real documents with: python scripts/benchmark_retrieval.py
 """
 
 import time
+
 from ingestion.embedder import EmbeddingService
 from retrieval.vector_store import VectorStore
 
@@ -15,6 +16,7 @@ TEST_QUERIES = [
     "What are the payment methods accepted?",
     # Add more queries matching your actual document content
 ]
+
 
 def benchmark(top_k_values: list[int] = [3, 5, 10]):
     embedder = EmbeddingService()
@@ -33,9 +35,14 @@ def benchmark(top_k_values: list[int] = [3, 5, 10]):
 
             print(f"  Query: '{query[:50]}...'")
             print(f"  Retrieval time: {elapsed:.1f}ms")
-            print(f"  Top score: {results[0]['score']:.3f}  |  Bottom score: {results[-1]['score']:.3f}")
-            print(f"  Sources: {[r['metadata'].get('source_file', '?') for r in results]}")
+            print(
+                f"  Top score: {results[0]['score']:.3f}  |  Bottom score: {results[-1]['score']:.3f}"
+            )
+            print(
+                f"  Sources: {[r['metadata'].get('source_file', '?') for r in results]}"
+            )
             print()
+
 
 if __name__ == "__main__":
     benchmark()

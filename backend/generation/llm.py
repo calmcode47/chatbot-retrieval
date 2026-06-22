@@ -11,26 +11,22 @@ def get_ollama_llm(
     base_url: str = "http://localhost:11434",
     temperature: float = 0.1,
     streaming: bool = True,
+    num_ctx: int = 4096,
 ) -> ChatOllama:
     """
-    Returns a LangChain-compatible Ollama LLM.
+    Returns a ChatOllama instance with explicit context window configuration.
 
-    Args:
-        model: Ollama model name (e.g., 'llama3.2:3b', 'mistral:7b')
-        base_url: Ollama server address
-        temperature: 0.0 = deterministic, 1.0 = creative
-        streaming: Enable token streaming
-
-    Returns:
-        ChatOllama instance
+    Always set num_ctx explicitly — never rely on Ollama's default.
+    Ollama's default num_ctx varies by model version and can be as low as 2048.
     """
-    logger.info(f"Initializing Ollama LLM: {model}")
+    logger.info(f"Initializing Ollama: model={model}, num_ctx={num_ctx}")
 
     llm = ChatOllama(
         model=model,
         base_url=base_url,
         temperature=temperature,
         streaming=streaming,
+        num_ctx=num_ctx,
     )
 
     # Quick health check

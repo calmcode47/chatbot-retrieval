@@ -5,11 +5,10 @@ Converts raw documents into smaller, overlapping chunks for retrieval.
 
 from pathlib import Path
 from typing import List
+
 from langchain_core.documents import Document
-from langchain_text_splitters import (
-    RecursiveCharacterTextSplitter,
-    SentenceTransformersTokenTextSplitter,
-)
+from langchain_text_splitters import (RecursiveCharacterTextSplitter,
+                                      SentenceTransformersTokenTextSplitter)
 from loguru import logger
 
 
@@ -46,13 +45,17 @@ class DocumentChunker:
             if source not in source_counters:
                 source_counters[source] = 0
             chunk.metadata["chunk_index"] = source_counters[source]
-            chunk.metadata["source_file"] = Path(source).name if source != "unknown" else "unknown"
+            chunk.metadata["source_file"] = (
+                Path(source).name if source != "unknown" else "unknown"
+            )
             source_counters[source] += 1
 
         logger.info(f"Split {len(documents)} documents → {len(chunks)} chunks")
         return chunks
 
-    def split_texts(self, texts: List[str], metadatas: List[dict] = None) -> List[Document]:
+    def split_texts(
+        self, texts: List[str], metadatas: List[dict] = None
+    ) -> List[Document]:
         """Split raw strings directly."""
         if metadatas is None:
             metadatas = [{}] * len(texts)

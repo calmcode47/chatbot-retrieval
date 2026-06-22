@@ -45,6 +45,7 @@ llm:
   max_tokens: 1024
   streaming: true
   warmup_on_start: true         # NEW: pre-warm model on API startup
+  num_ctx:           4096    # NEW: explicit Ollama context window
 
 conversation:
   max_history_turns: 5          # NEW: rolling window for multi-turn

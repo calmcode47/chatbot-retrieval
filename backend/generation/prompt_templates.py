@@ -5,7 +5,6 @@ The system prompt is critical — it instructs the LLM to stay grounded.
 
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 
-
 RAG_SYSTEM_PROMPT = """You are DocuMind, a precise and helpful document assistant.
 
 Your task is to answer the user's question. If it is a generic greeting (like 'hi', 'hello', 'hey') or a question about your identity (like 'who are you?'), respond politely and offer to help with document question-answering.
@@ -28,10 +27,12 @@ RAG_HUMAN_PROMPT = "Question: {question}"
 
 def get_rag_prompt() -> ChatPromptTemplate:
     """Returns the main RAG chat prompt template."""
-    return ChatPromptTemplate.from_messages([
-        ("system", RAG_SYSTEM_PROMPT),
-        ("human", RAG_HUMAN_PROMPT),
-    ])
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", RAG_SYSTEM_PROMPT),
+            ("human", RAG_HUMAN_PROMPT),
+        ]
+    )
 
 
 # Standalone question rewriting — converts follow-up questions to self-contained ones

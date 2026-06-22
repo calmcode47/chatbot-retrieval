@@ -3,7 +3,8 @@ ChromaDB vector store interface.
 Handles: creating collections, adding embeddings, similarity search, deletion.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import chromadb
 from chromadb import Collection
 from loguru import logger
@@ -17,23 +18,26 @@ class VectorStore:
 
     def __init__(
         self,
-        persist_directory: str = "./data/chroma_db",
-        collection_name: str = "documind_store",
+        persist_directory: str = None,
+        collection_name: str = None,
     ):
-        self.persist_directory = persist_directory
-        self.collection_name = collection_name
+        from configs.settings import get_config
+
+        cfg = get_config()
+        self.persist_directory = persist_directory or cfg.vector_store.persist_directory
+        self.collection_name = collection_name or cfg.vector_store.collection_name
 
         # Persistent client — data is saved to disk
-        self.client = chromadb.PersistentClient(path=persist_directory)
+        self.client = chromadb.PersistentClient(path=self.persist_directory)
 
         # Get or create the collection
         self.collection: Collection = self.client.get_or_create_collection(
-            name=collection_name,
+            name=self.collection_name,
             metadata={"hnsw:space": "cosine"},  # cosine similarity metric
         )
 
         logger.info(
-            f"VectorStore initialized. Collection '{collection_name}' "
+            f"VectorStore initialized. Collection '{self.collection_name}' "
             f"has {self.collection.count()} documents."
         )
 
@@ -88,14 +92,16 @@ class VectorStore:
         # Flatten and structure the results
         hits = []
         for i in range(len(results["ids"][0])):
-            hits.append({
-                "id": results["ids"][0][i],
-                "document": results["documents"][0][i],
-                "metadata": results["metadatas"][0][i],
-                "distance": results["distances"][0][i],
-                # Convert cosine distance → similarity score (0–1, higher = better)
-                "score": 1 - results["distances"][0][i],
-            })
+            hits.append(
+                {
+                    "id": results["ids"][0][i],
+                    "document": results["documents"][0][i],
+                    "metadata": results["metadatas"][0][i],
+                    "distance": results["distances"][0][i],
+                    # Convert cosine distance → similarity score (0–1, higher = better)
+                    "score": 1 - results["distances"][0][i],
+                }
+            )
 
         return hits
 
@@ -114,7 +120,9 @@ class VectorStore:
     def list_sources(self) -> List[str]:
         """Return a list of all unique source documents in the store."""
         results = self.collection.get(include=["metadatas"])
-        sources = list({m["source_file"] for m in results["metadatas"] if "source_file" in m})
+        sources = list(
+            {m["source_file"] for m in results["metadatas"] if "source_file" in m}
+        )
         return sorted(sources)
 
     @property
@@ -138,9 +146,16 @@ if __name__ == "__main__":
     ]
     test_embeddings = embedder.embed_batch(test_docs)
     test_ids = [f"test_{i}" for i in range(len(test_docs))]
-    test_metadatas = [{"source_file": "test.txt", "chunk_index": i} for i in range(len(test_docs))]
+    test_metadatas = [
+        {"source_file": "test.txt", "chunk_index": i} for i in range(len(test_docs))
+    ]
 
-    store.add(ids=test_ids, embeddings=test_embeddings, documents=test_docs, metadatas=test_metadatas)
+    store.add(
+        ids=test_ids,
+        embeddings=test_embeddings,
+        documents=test_docs,
+        metadatas=test_metadatas,
+    )
 
     # Search
     query = "What is the return policy?"

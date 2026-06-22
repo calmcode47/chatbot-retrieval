@@ -93,10 +93,33 @@ export default function Dashboard() {
   const [inputValue, setInputValue] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const [expandedSources, setExpandedSources] = useState({});
+  const [sessionId, setSessionId] = useState(
+    () => localStorage.getItem("documind_session_id") || null
+  );
+  const [sessionInfo, setSessionInfo] = useState(null);
 
   const chatEndRef = useRef(null);
+
+  // Persist session_id whenever it changes
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem("documind_session_id", sessionId);
+    } else {
+      localStorage.removeItem("documind_session_id");
+    }
+  }, [sessionId]);
+
+  // Fetch session stats when session_id is set
+  useEffect(() => {
+    if (!sessionId) {
+      setSessionInfo(null);
+      return;
+    }
+    fetch(`${API_BASE}/sessions/${sessionId}`)
+      .then((r) => r.json())
+      .then((data) => setSessionInfo(data))
+      .catch(() => {});
+  }, [sessionId, messages]);
 
   // --- Fetch System Status & Loaded Docs ---
   const fetchStatus = async () => {
@@ -122,6 +145,27 @@ export default function Dashboard() {
       console.error("Failed to load documents", err);
     }
   };
+
+  // Load existing chat history from SQLite when session is active
+  useEffect(() => {
+    if (sessionId) {
+      fetch(`${API_BASE}/sessions/${sessionId}/history`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.messages) {
+            const formatted = data.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+              timestamp: m.timestamp,
+            }));
+            setMessages(formatted);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setMessages([]);
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     fetchStatus();
@@ -181,6 +225,11 @@ export default function Dashboard() {
     }
   };
 
+  const handleNewChat = () => {
+    setSessionId(null);
+    setMessages([]);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || isThinking) return;
@@ -193,18 +242,6 @@ export default function Dashboard() {
     setMessages(newMessages);
     setIsThinking(true);
 
-    // Build chat history matching API schemas
-    // [{ "user": "query", "assistant": "response" }]
-    const history = [];
-    for (let i = 0; i < messages.length - 1; i += 2) {
-      if (messages[i].role === "user" && messages[i + 1]?.role === "assistant") {
-        history.push({
-          user: messages[i].content,
-          assistant: messages[i + 1].content,
-        });
-      }
-    }
-
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
@@ -212,12 +249,15 @@ export default function Dashboard() {
         body: JSON.stringify({
           question: userQuestion,
           top_k: 5,
-          chat_history: history,
+          session_id: sessionId,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
+        if (data.session_id && data.session_id !== sessionId) {
+          setSessionId(data.session_id);
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -305,7 +345,7 @@ export default function Dashboard() {
           {documents.length === 0 ? (
             <p className="no-docs-text">No documents uploaded yet.</p>
           ) : (
-            <div className="doc-list" style={{ overflowY: "auto", maxHeight: "calc(100vh - 430px)", paddingRight: "4px" }}>
+            <div className="doc-list" style={{ overflowY: "auto", maxHeight: "calc(100vh - 480px)", paddingRight: "4px" }}>
               {documents.map((doc) => (
                 <DocumentCard
                   key={doc.source_file}
@@ -313,6 +353,41 @@ export default function Dashboard() {
                   onDelete={handleDeleteDoc}
                 />
               ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: "auto", paddingTop: "16px", borderTop: "1px solid rgba(255, 255, 255, 0.06)", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <button
+            onClick={handleNewChat}
+            style={{
+              width: "100%",
+              padding: "10px",
+              background: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              borderRadius: "6px",
+              color: "var(--amber)",
+              fontFamily: "var(--font-condensed)",
+              fontWeight: "600",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              cursor: "pointer",
+              transition: "all var(--t-fast) var(--ease-out)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--amber)";
+              e.currentTarget.style.color = "#000";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(245, 158, 11, 0.1)";
+              e.currentTarget.style.color = "var(--amber)";
+            }}
+          >
+            New Chat
+          </button>
+          {sessionInfo && (
+            <div className="mono-sm" style={{ color: "var(--text-muted)", fontSize: "11px", textAlign: "center" }}>
+              Session: {sessionInfo.turn_count} turns · Active
             </div>
           )}
         </div>

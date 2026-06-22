@@ -12,12 +12,11 @@ Usage:
 """
 
 import math
-from typing import List, Dict, Any
-
-from rank_bm25 import BM25Okapi
-from loguru import logger
+from typing import Any, Dict, List
 
 from ingestion.embedder import EmbeddingService
+from loguru import logger
+from rank_bm25 import BM25Okapi
 from retrieval.vector_store import VectorStore
 
 
@@ -112,7 +111,7 @@ class HybridRetriever:
         logger.info("Building BM25 index from ChromaDB documents...")
         all_data = self.vector_store.collection.get(include=["documents"])
 
-        self._corpus_ids  = all_data["ids"]
+        self._corpus_ids = all_data["ids"]
         self._corpus_docs = all_data["documents"]
 
         tokenized = [_tokenize(doc) for doc in self._corpus_docs]
@@ -129,19 +128,23 @@ class HybridRetriever:
         scores = self._bm25.get_scores(query_tokens)
 
         # Get top_k indices by score
-        indexed_scores = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[:top_k]
+        indexed_scores = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[
+            :top_k
+        ]
 
         results = []
         for idx, score in indexed_scores:
             if score == 0.0:
                 continue  # BM25 score of 0 = no keyword overlap at all
-            results.append({
-                "id":       self._corpus_ids[idx],
-                "document": self._corpus_docs[idx],
-                "score":    float(score),
-                "metadata": {},   # BM25 doesn't store metadata — rehydrated below
-                "source":   "bm25",
-            })
+            results.append(
+                {
+                    "id": self._corpus_ids[idx],
+                    "document": self._corpus_docs[idx],
+                    "score": float(score),
+                    "metadata": {},  # BM25 doesn't store metadata — rehydrated below
+                    "source": "bm25",
+                }
+            )
 
         # Rehydrate metadata from ChromaDB for matched documents
         if results:
@@ -174,7 +177,7 @@ class HybridRetriever:
             sorted by RRF score.
         """
         # Dense retrieval via ChromaDB
-        query_vec    = self.embedder.embed(query)
+        query_vec = self.embedder.embed(query)
         dense_results = self.vector_store.search(
             query_vec,
             top_k=self.dense_candidates,
@@ -187,7 +190,11 @@ class HybridRetriever:
         sparse_results = self._bm25_search(query, top_k=self.sparse_candidates)
         if where and "source_file" in where:
             target_source = where["source_file"]
-            sparse_results = [r for r in sparse_results if r.get("metadata", {}).get("source_file") == target_source]
+            sparse_results = [
+                r
+                for r in sparse_results
+                if r.get("metadata", {}).get("source_file") == target_source
+            ]
 
         # Merge with RRF
         fused = reciprocal_rank_fusion(dense_results, sparse_results)

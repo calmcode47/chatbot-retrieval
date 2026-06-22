@@ -6,10 +6,10 @@ The child chunks (small) are stored in ChromaDB with parent_text in their metada
 On retrieval, we find the best child chunks, then return their parent text to the LLM.
 """
 
-from typing import List, Dict, Any
-from loguru import logger
+from typing import Any, Dict, List
 
 from ingestion.embedder import EmbeddingService
+from loguru import logger
 from retrieval.vector_store import VectorStore
 
 
@@ -27,7 +27,7 @@ class ParentRetriever:
         embedder: EmbeddingService,
     ):
         self.vector_store = vector_store
-        self.embedder     = embedder
+        self.embedder = embedder
 
     def search(
         self,
@@ -58,32 +58,38 @@ class ParentRetriever:
         # keep only the higher-scoring one
         seen_parents: Dict[str, Dict] = {}
         for hit in child_hits:
-            parent_id   = hit["metadata"].get("parent_id")
+            parent_id = hit["metadata"].get("parent_id")
             parent_text = hit["metadata"].get("parent_text")
 
             if not parent_id or not parent_text:
                 # Chunk was ingested without parent metadata (old flat ingestion)
                 # Fall back to using child text as document
                 fallback_id = hit["id"]
-                if fallback_id not in seen_parents or hit["score"] > seen_parents[fallback_id]["score"]:
+                if (
+                    fallback_id not in seen_parents
+                    or hit["score"] > seen_parents[fallback_id]["score"]
+                ):
                     seen_parents[fallback_id] = {
-                        "id":              hit["id"],
-                        "document":        hit["document"],   # child text as fallback
-                        "child_document":  hit["document"],
-                        "metadata":        hit["metadata"],
-                        "score":           hit["score"],
-                        "parent_id":       fallback_id,
+                        "id": hit["id"],
+                        "document": hit["document"],  # child text as fallback
+                        "child_document": hit["document"],
+                        "metadata": hit["metadata"],
+                        "score": hit["score"],
+                        "parent_id": fallback_id,
                     }
                 continue
 
-            if parent_id not in seen_parents or hit["score"] > seen_parents[parent_id]["score"]:
+            if (
+                parent_id not in seen_parents
+                or hit["score"] > seen_parents[parent_id]["score"]
+            ):
                 seen_parents[parent_id] = {
-                    "id":              parent_id,
-                    "document":        parent_text,           # LLM reads the parent
-                    "child_document":  hit["document"],       # What was matched
-                    "metadata":        hit["metadata"],
-                    "score":           hit["score"],
-                    "parent_id":       parent_id,
+                    "id": parent_id,
+                    "document": parent_text,  # LLM reads the parent
+                    "child_document": hit["document"],  # What was matched
+                    "metadata": hit["metadata"],
+                    "score": hit["score"],
+                    "parent_id": parent_id,
                 }
 
         # Sort by child chunk score (best semantic match first) and return top_k

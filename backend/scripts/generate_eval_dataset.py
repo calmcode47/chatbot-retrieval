@@ -9,16 +9,16 @@ Run with: python scripts/generate_eval_dataset.py
 """
 
 import json
-import httpx
 import time
 from pathlib import Path
-from loguru import logger
 
+import httpx
+from loguru import logger
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2:3b"
 OUTPUT_PATH = "evaluation/eval_dataset.json"
-MAX_QUESTIONS = 25     # Cap at 25 — enough for reliable RAGAS scores
+MAX_QUESTIONS = 25  # Cap at 25 — enough for reliable RAGAS scores
 MIN_CHUNK_LENGTH = 80  # Skip very short chunks that won't generate useful questions
 
 
@@ -99,6 +99,7 @@ def generate_dataset():
 
     # Sample evenly across documents for coverage
     import random
+
     random.shuffle(eligible)
     selected = eligible[:MAX_QUESTIONS]
 
@@ -106,9 +107,13 @@ def generate_dataset():
     skipped = 0
 
     for i, (chunk_text, meta) in enumerate(selected):
-        logger.info(f"  [{i+1}/{len(selected)}] Generating Q&A for chunk from '{meta.get('source_file', '?')}'")
+        logger.info(
+            f"  [{i+1}/{len(selected)}] Generating Q&A for chunk from '{meta.get('source_file', '?')}'"
+        )
 
-        prompt = GENERATION_PROMPT.format(chunk=chunk_text[:800])  # Cap chunk for prompt budget
+        prompt = GENERATION_PROMPT.format(
+            chunk=chunk_text[:800]
+        )  # Cap chunk for prompt budget
         raw_response = call_ollama(prompt)
 
         if not raw_response:
@@ -133,12 +138,14 @@ def generate_dataset():
                 skipped += 1
                 continue
 
-            dataset.append({
-                "question": question,
-                "ground_truth": answer,
-                "source_doc": meta.get("source_file", "unknown"),
-                "source_chunk": chunk_text[:300],  # For manual review
-            })
+            dataset.append(
+                {
+                    "question": question,
+                    "ground_truth": answer,
+                    "source_doc": meta.get("source_file", "unknown"),
+                    "source_chunk": chunk_text[:300],  # For manual review
+                }
+            )
 
             logger.debug(f"    Q: {question[:80]}")
 
@@ -159,7 +166,9 @@ def generate_dataset():
     logger.success(f"\nGenerated {len(dataset)} Q&A pairs ({skipped} skipped).")
     logger.success(f"Saved to '{OUTPUT_PATH}'.")
     logger.info("Review the file before running RAGAS evaluation.")
-    logger.info("Add or remove entries as needed. Quality of eval data = quality of your scores.")
+    logger.info(
+        "Add or remove entries as needed. Quality of eval data = quality of your scores."
+    )
 
 
 if __name__ == "__main__":

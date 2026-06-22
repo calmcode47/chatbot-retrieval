@@ -9,15 +9,16 @@ Usage:
     top_chunks = reranker.rerank(query="...", results=store.search(..., top_k=20))
 """
 
-from typing import List, Dict, Any
-from sentence_transformers import CrossEncoder
+from typing import Any, Dict, List
+
 from loguru import logger
+from sentence_transformers import CrossEncoder
 
 
 class CrossEncoderReranker:
     """
     Re-ranks retrieval results using a cross-encoder.
-    
+
     Workflow:
         1. Bi-encoder retrieves top-20 candidates (fast, approximate)
         2. CrossEncoder scores each (query, chunk) pair jointly (slower, precise)
@@ -58,6 +59,7 @@ class CrossEncoderReranker:
         scores = self.model.predict(pairs, show_progress_bar=False)
 
         import math
+
         # Attach rerank score to each result and sort descending
         for result, score in zip(results, scores):
             # Map raw logits to [0, 1] range using sigmoid

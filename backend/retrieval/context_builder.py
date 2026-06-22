@@ -2,7 +2,7 @@
 Assembles retrieved chunks into a structured context string for the LLM prompt.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class ContextBuilder:
@@ -46,12 +46,14 @@ class ContextBuilder:
                 f"{result['document']}"
             )
 
-            sources.append({
-                "source_file": source_file,
-                "page": page,
-                "score": score,
-                "excerpt": result["document"][:200] + "...",
-            })
+            sources.append(
+                {
+                    "source_file": source_file,
+                    "page": page,
+                    "score": score,
+                    "excerpt": result["document"][:200] + "...",
+                }
+            )
 
         context_string = "\n\n---\n\n".join(context_parts)
         return context_string, sources

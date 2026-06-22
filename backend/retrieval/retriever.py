@@ -3,12 +3,12 @@ Retriever module that wraps vector search and cross-encoder re-ranking.
 """
 
 import math
-from typing import List, Dict, Any, Optional
-import torch
-from sentence_transformers import CrossEncoder
-from loguru import logger
+from typing import Any, Dict, List, Optional
 
+import torch
+from loguru import logger
 from retrieval.vector_store import VectorStore
+from sentence_transformers import CrossEncoder
 
 
 class RerankerService:
@@ -27,7 +27,9 @@ class RerankerService:
         self.model = CrossEncoder(model_name, device=device)
         logger.info("Reranker model loaded successfully.")
 
-    def rerank(self, query: str, results: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
+    def rerank(
+        self, query: str, results: List[Dict[str, Any]], top_k: int = 5
+    ) -> List[Dict[str, Any]]:
         """
         Re-ranks a list of candidate results against the query.
 
@@ -45,7 +47,9 @@ class RerankerService:
         # Form pairs of [query, document]
         pairs = [[query, r["document"]] for r in results]
 
-        logger.info(f"Re-ranking {len(results)} candidates using '{self.model_name}'...")
+        logger.info(
+            f"Re-ranking {len(results)} candidates using '{self.model_name}'..."
+        )
         logits = self.model.predict(pairs)
 
         # Map raw logits to [0, 1] range using sigmoid, updating score in results

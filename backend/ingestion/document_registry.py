@@ -31,7 +31,6 @@ from typing import Dict, List, Optional
 
 from loguru import logger
 
-
 REGISTRY_PATH = Path("data/document_registry.json")
 
 
@@ -65,7 +64,7 @@ class DocumentRegistry:
         """Human-readable file size: '44.2 KB', '1.3 MB'."""
         if size_bytes < 1024:
             return f"{size_bytes} B"
-        elif size_bytes < 1024 ** 2:
+        elif size_bytes < 1024**2:
             return f"{size_bytes / 1024:.1f} KB"
         else:
             return f"{size_bytes / (1024 ** 2):.1f} MB"
@@ -91,13 +90,13 @@ class DocumentRegistry:
         size_bytes = p.stat().st_size if p.exists() else 0
 
         entry = {
-            "source_file":       source_file,
-            "file_type":         p.suffix.lstrip(".").lower() or "unknown",
-            "file_size_bytes":   size_bytes,
+            "source_file": source_file,
+            "file_type": p.suffix.lstrip(".").lower() or "unknown",
+            "file_size_bytes": size_bytes,
             "file_size_display": self._format_size(size_bytes),
-            "upload_timestamp":  datetime.now().isoformat(timespec="seconds"),
-            "chunk_count":       chunk_count,
-            "ingestion_id":      uuid.uuid4().hex[:8],
+            "upload_timestamp": datetime.now().isoformat(timespec="seconds"),
+            "chunk_count": chunk_count,
+            "ingestion_id": uuid.uuid4().hex[:8],
         }
 
         data = self._read()
@@ -142,8 +141,8 @@ class DocumentRegistry:
         Returns:
             Number of stale entries removed.
         """
-        data    = self._read()
-        stale   = [k for k in data if k not in active_sources]
+        data = self._read()
+        stale = [k for k in data if k not in active_sources]
         removed = 0
         for key in stale:
             del data[key]

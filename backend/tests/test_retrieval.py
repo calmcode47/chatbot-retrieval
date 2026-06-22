@@ -4,8 +4,8 @@ Unit tests for the retrieval pipeline.
 
 import pytest
 from ingestion.embedder import EmbeddingService
-from retrieval.vector_store import VectorStore
 from retrieval.context_builder import ContextBuilder
+from retrieval.vector_store import VectorStore
 
 
 @pytest.fixture(scope="module")
@@ -26,6 +26,7 @@ def test_embedding_dimension(embedder):
 
 def test_embedding_normalized(embedder):
     import math
+
     vec = embedder.embed("Test sentence")
     magnitude = math.sqrt(sum(v**2 for v in vec))
     assert abs(magnitude - 1.0) < 0.01, "Embedding should be normalized (unit vector)"
@@ -76,12 +77,21 @@ def test_context_builder_empty():
 
 def test_reranker():
     from retrieval.reranker import CrossEncoderReranker
+
     reranker = CrossEncoderReranker()
 
     query = "What is the refund policy?"
     mock_results = [
-        {"document": "Our office is located in SF.", "metadata": {"source_file": "office.txt"}, "score": 0.5},
-        {"document": "Refunds are processed within 30 days.", "metadata": {"source_file": "refund.txt"}, "score": 0.4},
+        {
+            "document": "Our office is located in SF.",
+            "metadata": {"source_file": "office.txt"},
+            "score": 0.5,
+        },
+        {
+            "document": "Refunds are processed within 30 days.",
+            "metadata": {"source_file": "refund.txt"},
+            "score": 0.4,
+        },
     ]
 
     reranked = reranker.rerank(query, mock_results, top_k=2)
@@ -93,6 +103,7 @@ def test_reranker():
 
 def test_conversational_chain_condense():
     from unittest.mock import MagicMock, patch
+
     from pipeline.conversational_chain import ConversationalRAGChain
 
     # Mock Ollama generation function
@@ -115,7 +126,9 @@ def test_conversational_chain_condense():
             use_reranker=False,
         )
 
-        chat_history = [("What is the refund policy?", "You can return items within 30 days.")]
+        chat_history = [
+            ("What is the refund policy?", "You can return items within 30 days.")
+        ]
         condensed = chain._condense_question("What about damaged items?", chat_history)
 
         assert condensed == "What is the refund policy for damaged items?"

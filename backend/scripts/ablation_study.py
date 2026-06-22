@@ -29,22 +29,22 @@ from pathlib import Path
 
 from loguru import logger
 
-
 SUPPORTED_PARAMS = {
-    "child_chunk_size":    ("chunking",   int),
-    "parent_chunk_size":   ("chunking",   int),
-    "top_k":               ("retrieval",  int),
-    "reranker_candidates": ("retrieval",  int),
-    "score_threshold":     ("retrieval",  float),
+    "child_chunk_size": ("chunking", int),
+    "parent_chunk_size": ("chunking", int),
+    "top_k": ("retrieval", int),
+    "reranker_candidates": ("retrieval", int),
+    "score_threshold": ("retrieval", float),
 }
 
 RESULTS_PATH = Path("evaluation/ablation_results.json")
 SUMMARY_PATH = Path("evaluation/ablation_summary.md")
-DATA_DIR     = Path("data/raw")
-CHROMA_DIR   = Path("data/chroma_db")
+DATA_DIR = Path("data/raw")
+CHROMA_DIR = Path("data/chroma_db")
 
 
 # ── Config override (in-memory, no YAML rewrite) ─────────────────────
+
 
 def override_config(param: str, value) -> None:
     """
@@ -53,10 +53,11 @@ def override_config(param: str, value) -> None:
     Uses the get_config.cache_clear() + environment variable approach.
     """
     from configs.settings import get_config
+
     get_config.cache_clear()
 
     section, _ = SUPPORTED_PARAMS[param]
-    env_key     = f"ABLATION_{param.upper()}"
+    env_key = f"ABLATION_{param.upper()}"
     os.environ[env_key] = str(value)
 
     # The settings loader must read this env var.
@@ -69,6 +70,7 @@ def override_config(param: str, value) -> None:
 
 # ── Pipeline operations ───────────────────────────────────────────────
 
+
 def clear_vector_store() -> None:
     """Wipe ChromaDB for a clean re-ingest."""
     if CHROMA_DIR.exists():
@@ -77,33 +79,39 @@ def clear_vector_store() -> None:
         logger.info("ChromaDB cleared.")
     # Also reset the in-memory store in case it's imported
     from configs.settings import get_config
+
     get_config.cache_clear()
 
 
 def ingest_all_documents(use_hierarchical: bool = True) -> int:
     """Ingest all documents from data/raw/ using current config."""
+    import uuid
+
+    from configs.settings import get_config
+    from ingestion.chunker import DocumentChunker
     from ingestion.embedder import EmbeddingService
     from ingestion.loaders import load_file
     from ingestion.parent_chunker import ParentDocumentChunker
-    from ingestion.chunker import DocumentChunker
     from retrieval.vector_store import VectorStore
-    from configs.settings import get_config
-    import uuid
 
-    cfg      = get_config()
+    cfg = get_config()
     embedder = EmbeddingService(
         model_name=cfg.embedding.model_name,
         device=cfg.embedding.device,
         use_cache=True,
     )
-    store    = VectorStore(persist_directory=str(CHROMA_DIR))
+    store = VectorStore(persist_directory=str(CHROMA_DIR))
 
-    files = list(DATA_DIR.glob("**/*.pdf")) + \
-            list(DATA_DIR.glob("**/*.txt")) + \
-            list(DATA_DIR.glob("**/*.md"))
+    files = (
+        list(DATA_DIR.glob("**/*.pdf"))
+        + list(DATA_DIR.glob("**/*.txt"))
+        + list(DATA_DIR.glob("**/*.md"))
+    )
 
     if not files:
-        raise RuntimeError(f"No documents found in '{DATA_DIR}'. Add documents before running ablation.")
+        raise RuntimeError(
+            f"No documents found in '{DATA_DIR}'. Add documents before running ablation."
+        )
 
     total_chunks = 0
 
@@ -116,10 +124,10 @@ def ingest_all_documents(use_hierarchical: bool = True) -> int:
             texts = [c.child_text for c in hier_chunks]
             metadatas = [
                 {
-                    "source_file":  file_path.name,
-                    "parent_id":    c.parent_id,
-                    "parent_text":  c.parent_text,
-                    "child_index":  c.child_index,
+                    "source_file": file_path.name,
+                    "parent_id": c.parent_id,
+                    "parent_text": c.parent_text,
+                    "child_index": c.child_index,
                 }
                 for c in hier_chunks
             ]
@@ -130,7 +138,9 @@ def ingest_all_documents(use_hierarchical: bool = True) -> int:
             metadatas = [{"source_file": file_path.name, **c.metadata} for c in chunks]
 
         embeddings = embedder.embed_batch(texts)
-        ids = [f"{file_path.name}_{i}_{uuid.uuid4().hex[:6]}" for i in range(len(texts))]
+        ids = [
+            f"{file_path.name}_{i}_{uuid.uuid4().hex[:6]}" for i in range(len(texts))
+        ]
         store.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
         total_chunks += len(texts)
         logger.info(f"  Ingested '{file_path.name}': {len(texts)} chunks")
@@ -145,8 +155,10 @@ def run_ragas_evaluation(fast_mode: bool = False) -> dict:
     fast_mode=True uses only the first 5 eval questions (quicker, less accurate).
     """
     import importlib
+
     import evaluation.ragas_eval as ragas_module
-    importlib.reload(ragas_module)   # Reload to pick up any config changes
+
+    importlib.reload(ragas_module)  # Reload to pick up any config changes
 
     eval_path = Path(ragas_module.EVAL_DATASET_PATH)
     if not eval_path.exists():
@@ -169,11 +181,12 @@ def run_ragas_evaluation(fast_mode: bool = False) -> dict:
         )
 
     ragas_dataset = ragas_module.build_ragas_dataset(eval_data)
-    scores        = ragas_module.run_ragas_with_judge(ragas_dataset)
+    scores = ragas_module.run_ragas_with_judge(ragas_dataset)
     return scores
 
 
 # ── Results management ────────────────────────────────────────────────
+
 
 def load_results() -> dict:
     if RESULTS_PATH.exists():
@@ -205,22 +218,24 @@ def generate_summary(results: dict) -> str:
 
     for param, param_runs in by_param.items():
         lines.append(f"\n## Parameter: `{param}`\n")
-        lines.append("| Value | Faithfulness | Answer Rel. | Ctx Precision | Ctx Recall | Avg |")
+        lines.append(
+            "| Value | Faithfulness | Answer Rel. | Ctx Precision | Ctx Recall | Avg |"
+        )
         lines.append("|---|---|---|---|---|---|")
 
-        best_avg   = -1
+        best_avg = -1
         best_value = None
 
         for run in sorted(param_runs, key=lambda x: x["value"]):
-            m     = run["metrics"]
+            m = run["metrics"]
             faith = m.get("faithfulness", 0)
-            ar    = m.get("answer_relevancy", 0)
-            cp    = m.get("context_precision", 0)
-            cr    = m.get("context_recall", 0)
-            avg   = (faith + ar + cp + cr) / 4
+            ar = m.get("answer_relevancy", 0)
+            cp = m.get("context_precision", 0)
+            cr = m.get("context_recall", 0)
+            avg = (faith + ar + cp + cr) / 4
 
             if avg > best_avg:
-                best_avg   = avg
+                best_avg = avg
                 best_value = run["value"]
 
             lines.append(
@@ -233,6 +248,7 @@ def generate_summary(results: dict) -> str:
 
 
 # ── Main ──────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -263,14 +279,16 @@ def main():
     args = parser.parse_args()
 
     _, type_fn = SUPPORTED_PARAMS[args.param]
-    values     = [type_fn(v) for v in args.values]
+    values = [type_fn(v) for v in args.values]
     hierarchical = not args.no_hierarchical
 
     logger.info(f"Ablation study: {args.param} ∈ {values}")
     logger.info(f"Fast mode: {args.fast} | Hierarchical: {hierarchical}")
 
     if args.fast:
-        logger.warning("Fast mode enabled: scores less reliable (5 questions only). Use for direction, not final results.")
+        logger.warning(
+            "Fast mode enabled: scores less reliable (5 questions only). Use for direction, not final results."
+        )
 
     results = load_results()
 
@@ -301,14 +319,14 @@ def main():
 
             # 4. Record result
             run_record = {
-                "run_id":       run_id,
-                "param":        args.param,
-                "value":        value,
-                "fast_mode":    args.fast,
-                "chunk_count":  chunk_count,
-                "metrics":      scores,
-                "elapsed_s":    round(elapsed, 1),
-                "timestamp":    datetime.now().isoformat(),
+                "run_id": run_id,
+                "param": args.param,
+                "value": value,
+                "fast_mode": args.fast,
+                "chunk_count": chunk_count,
+                "metrics": scores,
+                "elapsed_s": round(elapsed, 1),
+                "timestamp": datetime.now().isoformat(),
             }
 
             results["runs"].append(run_record)
@@ -320,13 +338,15 @@ def main():
 
         except Exception as e:
             logger.error(f"Run {run_id} failed: {e}")
-            results["runs"].append({
-                "run_id":    run_id,
-                "param":     args.param,
-                "value":     value,
-                "error":     str(e),
-                "timestamp": datetime.now().isoformat(),
-            })
+            results["runs"].append(
+                {
+                    "run_id": run_id,
+                    "param": args.param,
+                    "value": value,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             save_results(results)
             continue
 

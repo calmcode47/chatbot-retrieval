@@ -20,90 +20,91 @@ from pathlib import Path
 from typing import List
 
 import yaml
-from pydantic import BaseModel, Field
 from loguru import logger
-
+from pydantic import BaseModel, Field
 
 # ── Sub-config models ─────────────────────────────────────────────────
 
+
 class EmbeddingConfig(BaseModel):
-    model_name: str     = "BAAI/bge-base-en-v1.5"
-    device: str         = "mps"
-    batch_size: int     = 32
-    cache_dir: str      = "./models"
-    use_cache: bool     = True
+    model_name: str = "BAAI/bge-base-en-v1.5"
+    device: str = "mps"
+    batch_size: int = 32
+    cache_dir: str = "./models"
+    use_cache: bool = True
     cache_directory: str = "./data/embedding_cache"
     cache_size_limit_gb: int = 2
 
 
 class ChunkingConfig(BaseModel):
-    strategy: str               = "hierarchical"  # "flat" or "hierarchical"
+    strategy: str = "hierarchical"  # "flat" or "hierarchical"
 
     # Flat chunking
-    chunk_size: int             = 512
-    chunk_overlap: int          = 64
+    chunk_size: int = 512
+    chunk_overlap: int = 64
 
     # Hierarchical chunking
-    parent_chunk_size: int      = 512
-    parent_chunk_overlap: int   = 32
-    child_chunk_size: int       = 128
-    child_chunk_overlap: int    = 16
+    parent_chunk_size: int = 512
+    parent_chunk_overlap: int = 32
+    child_chunk_size: int = 128
+    child_chunk_overlap: int = 16
 
-    separators: List[str]       = ["\n\n", "\n", ". ", " ", ""]
+    separators: List[str] = ["\n\n", "\n", ". ", " ", ""]
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str           = "chromadb"
-    persist_directory: str  = "./data/chroma_db"
-    collection_name: str    = "documind_store"
-    distance_metric: str    = "cosine"
+    provider: str = "chromadb"
+    persist_directory: str = "./data/chroma_db"
+    collection_name: str = "documind_store"
+    distance_metric: str = "cosine"
 
 
 class RetrievalConfig(BaseModel):
-    strategy: str               = "hybrid"   # "dense", "hybrid", or "parent"
-    top_k: int                  = 5
-    score_threshold: float      = 0.3
-    rerank: bool                = True
-    reranker_model: str         = "BAAI/bge-reranker-base"
-    reranker_candidates: int    = 20
-    dense_candidates: int       = 20
-    sparse_candidates: int      = 20
-    parent_candidates: int      = 20
+    strategy: str = "hybrid"  # "dense", "hybrid", or "parent"
+    top_k: int = 5
+    score_threshold: float = 0.3
+    rerank: bool = True
+    reranker_model: str = "BAAI/bge-reranker-base"
+    reranker_candidates: int = 20
+    dense_candidates: int = 20
+    sparse_candidates: int = 20
+    parent_candidates: int = 20
 
 
 class LLMConfig(BaseModel):
-    provider: str           = "ollama"
-    model: str              = "llama3.2:3b"
-    base_url: str           = "http://localhost:11434"
-    temperature: float      = 0.1
-    top_p: float            = 0.9
-    max_tokens: int         = 1024
-    streaming: bool         = True
-    warmup_on_start: bool   = True
+    provider: str = "ollama"
+    model: str = "llama3.2:3b"
+    base_url: str = "http://localhost:11434"
+    temperature: float = 0.1
+    top_p: float = 0.9
+    max_tokens: int = 1024
+    streaming: bool = True
+    warmup_on_start: bool = True
+    num_ctx: int = 4096  # NEW
 
 
 class ConversationConfig(BaseModel):
-    max_history_turns: int  = 5
+    max_history_turns: int = 5
 
 
 class APIConfig(BaseModel):
-    host: str   = "0.0.0.0"
-    port: int   = 8000
+    host: str = "0.0.0.0"
+    port: int = 8000
     reload: bool = True
 
 
 class EvaluationConfig(BaseModel):
-    rag_model: str          = "llama3.2:3b"
-    judge_model: str        = "mistral:7b"     # NEW: separate judge model
-    dataset_path: str       = "./evaluation/eval_dataset.json"
-    results_path:  str      = "./evaluation/ragas_results.json"
-    min_questions: int      = 10
-    timeout_seconds: int    = 180               # Per-LLM-call timeout for RAGAS
+    rag_model: str = "llama3.2:3b"
+    judge_model: str = "mistral:7b"  # NEW: separate judge model
+    dataset_path: str = "./evaluation/eval_dataset.json"
+    results_path: str = "./evaluation/ragas_results.json"
+    min_questions: int = 10
+    timeout_seconds: int = 180  # Per-LLM-call timeout for RAGAS
     targets: dict = {
-        "faithfulness":      0.80,
-        "answer_relevancy":  0.80,
+        "faithfulness": 0.80,
+        "answer_relevancy": 0.80,
         "context_precision": 0.70,
-        "context_recall":    0.70,
+        "context_recall": 0.70,
     }
 
 
@@ -113,18 +114,20 @@ class DocumentsConfig(BaseModel):
 
 class AppConfig(BaseModel):
     """Root configuration object. Access any sub-config as an attribute."""
-    embedding:    EmbeddingConfig    = EmbeddingConfig()
-    chunking:     ChunkingConfig     = ChunkingConfig()
-    vector_store: VectorStoreConfig  = VectorStoreConfig()
-    retrieval:    RetrievalConfig    = RetrievalConfig()
-    llm:          LLMConfig          = LLMConfig()
+
+    embedding: EmbeddingConfig = EmbeddingConfig()
+    chunking: ChunkingConfig = ChunkingConfig()
+    vector_store: VectorStoreConfig = VectorStoreConfig()
+    retrieval: RetrievalConfig = RetrievalConfig()
+    llm: LLMConfig = LLMConfig()
     conversation: ConversationConfig = ConversationConfig()
-    api:          APIConfig          = APIConfig()
-    evaluation:   EvaluationConfig   = EvaluationConfig()
-    documents:    DocumentsConfig    = DocumentsConfig()
+    api: APIConfig = APIConfig()
+    evaluation: EvaluationConfig = EvaluationConfig()
+    documents: DocumentsConfig = DocumentsConfig()
 
 
 # ── Loader ───────────────────────────────────────────────────────────
+
 
 def _find_config_path() -> Path:
     """Locate config.yaml starting from current working directory."""
@@ -156,13 +159,15 @@ def get_config(config_path: str = None) -> AppConfig:
     Returns:
         Validated AppConfig instance.
     """
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     path = Path(config_path) if config_path else _find_config_path()
 
     with open(path) as f:
         raw = yaml.safe_load(f)
 
-    # Allow environment variable overrides for Docker compatibility
-    # e.g., OLLAMA_BASE_URL overrides llm.base_url
     if "OLLAMA_BASE_URL" in os.environ:
         raw.setdefault("llm", {})["base_url"] = os.environ["OLLAMA_BASE_URL"]
 
@@ -171,6 +176,15 @@ def get_config(config_path: str = None) -> AppConfig:
 
     if "EMBEDDING_DEVICE" in os.environ:
         raw.setdefault("embedding", {})["device"] = os.environ["EMBEDDING_DEVICE"]
+
+    if "CHROMA_DB_DIR" in os.environ:
+        raw.setdefault("vector_store", {})["persist_directory"] = os.environ[
+            "CHROMA_DB_DIR"
+        ]
+    elif "DATA_DIR" in os.environ:
+        raw.setdefault("vector_store", {})["persist_directory"] = os.path.join(
+            os.environ["DATA_DIR"], "chroma_db"
+        )
 
     config = AppConfig(**raw)
     logger.debug(f"Config loaded from '{path}'")

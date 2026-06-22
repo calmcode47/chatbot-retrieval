@@ -3,15 +3,15 @@ Full RAG pipeline using LangChain.
 Wires: query embedding → vector search → context building → LLM generation.
 """
 
-from typing import Dict, Any, List
-from loguru import logger
+from typing import Any, Dict, List
 
-from ingestion.embedder import EmbeddingService
-from retrieval.vector_store import VectorStore
-from retrieval.context_builder import ContextBuilder
-from retrieval.reranker import CrossEncoderReranker
 from generation.llm import get_ollama_llm
 from generation.prompt_templates import get_rag_prompt
+from ingestion.embedder import EmbeddingService
+from loguru import logger
+from retrieval.context_builder import ContextBuilder
+from retrieval.reranker import CrossEncoderReranker
+from retrieval.vector_store import VectorStore
 
 
 class RAGChain:
@@ -22,8 +22,8 @@ class RAGChain:
         model_name: str = "llama3.2:3b",
         top_k: int = 5,
         score_threshold: float = 0.3,
-        use_reranker: bool = True,          # NEW PARAMETER
-        reranker_candidates: int = 20,       # NEW PARAMETER — fetch 20, rerank to top_k
+        use_reranker: bool = True,  # NEW PARAMETER
+        reranker_candidates: int = 20,  # NEW PARAMETER — fetch 20, rerank to top_k
     ):
         self.embedder = embedder or EmbeddingService()
         self.vector_store = vector_store or VectorStore()
@@ -41,7 +41,9 @@ class RAGChain:
         else:
             self.reranker = None
 
-        logger.info(f"RAGChain initialized. Reranker: {'ON' if use_reranker else 'OFF'}")
+        logger.info(
+            f"RAGChain initialized. Reranker: {'ON' if use_reranker else 'OFF'}"
+        )
 
     def query(self, question: str) -> Dict[str, Any]:
         """Run a full RAG query with optional cross-encoder reranking."""
@@ -65,7 +67,9 @@ class RAGChain:
             )
 
         # Steps 4–6: Context → Prompt → LLM
-        context, sources = self.context_builder.build(search_results, self.score_threshold)
+        context, sources = self.context_builder.build(
+            search_results, self.score_threshold
+        )
         messages = self.prompt.format_messages(context=context, question=question)
         response = self.llm.invoke(messages)
 
@@ -74,7 +78,11 @@ class RAGChain:
             "answer": response.content,
             "sources": sources,
             "retrieval_scores": [r["score"] for r in search_results],
-            "rerank_scores": [r.get("rerank_score") for r in search_results] if self.use_reranker else [],
+            "rerank_scores": (
+                [r.get("rerank_score") for r in search_results]
+                if self.use_reranker
+                else []
+            ),
             "chunks_used": len(sources),
             "reranker_used": self.use_reranker,
         }
@@ -85,10 +93,10 @@ class RAGChain:
         Use this for real-time streaming in the API/UI.
         """
         query_embedding = self.embedder.embed(question)
-        
+
         fetch_k = self.reranker_candidates if self.use_reranker else self.top_k
         search_results = self.vector_store.search(query_embedding, top_k=fetch_k)
-        
+
         if search_results and self.use_reranker and self.reranker:
             search_results = self.reranker.rerank(
                 query=question,
@@ -96,7 +104,9 @@ class RAGChain:
                 top_k=self.top_k,
             )
 
-        context, sources = self.context_builder.build(search_results, self.score_threshold)
+        context, sources = self.context_builder.build(
+            search_results, self.score_threshold
+        )
         messages = self.prompt.format_messages(context=context, question=question)
 
         # Yield sources first (metadata)

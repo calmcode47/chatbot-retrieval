@@ -11,26 +11,25 @@ Parent text is stored as metadata on each child chunk (linked by parent_id).
 """
 
 import uuid
-from typing import List, Tuple
 from dataclasses import dataclass
+from typing import List, Tuple
 
+from configs.settings import get_config
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from loguru import logger
 
 
-from configs.settings import get_config
-
-
 @dataclass
 class HierarchicalChunk:
     """A child chunk with a reference to its parent text."""
-    child_text:    str
-    parent_text:   str
-    parent_id:     str
-    child_index:   int       # Position of this child within its parent
-    source_file:   str
-    page:          int | str
+
+    child_text: str
+    parent_text: str
+    parent_id: str
+    child_index: int  # Position of this child within its parent
+    source_file: str
+    page: int | str
     extra_metadata: dict
 
 
@@ -70,7 +69,7 @@ class ParentDocumentChunker:
 
         for doc in documents:
             source_file = doc.metadata.get("source", "unknown").split("/")[-1]
-            page        = doc.metadata.get("page", "?")
+            page = doc.metadata.get("page", "?")
 
             # Split into parent chunks
             parent_docs = self.parent_splitter.create_documents(
@@ -78,7 +77,7 @@ class ParentDocumentChunker:
             )
 
             for parent_doc in parent_docs:
-                parent_id   = f"parent_{uuid.uuid4().hex[:12]}"
+                parent_id = f"parent_{uuid.uuid4().hex[:12]}"
                 parent_text = parent_doc.page_content
 
                 # Split parent into child chunks
@@ -88,18 +87,21 @@ class ParentDocumentChunker:
                     if len(child_doc.page_content.strip()) < 20:
                         continue  # Skip trivially short child chunks
 
-                    all_chunks.append(HierarchicalChunk(
-                        child_text=child_doc.page_content,
-                        parent_text=parent_text,
-                        parent_id=parent_id,
-                        child_index=child_idx,
-                        source_file=source_file,
-                        page=page,
-                        extra_metadata={
-                            k: v for k, v in doc.metadata.items()
-                            if k not in ("source", "page")
-                        },
-                    ))
+                    all_chunks.append(
+                        HierarchicalChunk(
+                            child_text=child_doc.page_content,
+                            parent_text=parent_text,
+                            parent_id=parent_id,
+                            child_index=child_idx,
+                            source_file=source_file,
+                            page=page,
+                            extra_metadata={
+                                k: v
+                                for k, v in doc.metadata.items()
+                                if k not in ("source", "page")
+                            },
+                        )
+                    )
 
         logger.info(
             f"Hierarchical chunking: {len(documents)} docs → {len(all_chunks)} child chunks"

@@ -8,8 +8,8 @@ Cache is ON by default. Set use_cache=False to disable (e.g., in unit tests).
 from typing import List, Optional
 
 import torch
-from sentence_transformers import SentenceTransformer
 from loguru import logger
+from sentence_transformers import SentenceTransformer
 
 
 class EmbeddingService:
@@ -29,9 +29,9 @@ class EmbeddingService:
         if device is None:
             device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-        self.device      = device
-        self.model_name  = model_name
-        self.batch_size  = batch_size
+        self.device = device
+        self.model_name = model_name
+        self.batch_size = batch_size
 
         logger.info(f"Loading embedding model '{model_name}' on '{device}'...")
         self.model = SentenceTransformer(model_name, device=device)
@@ -44,6 +44,7 @@ class EmbeddingService:
         self._cache = None
         if use_cache:
             from ingestion.embedding_cache import EmbeddingCache
+
             self._cache = EmbeddingCache(cache_dir=cache_dir)
 
     @property
@@ -57,8 +58,8 @@ class EmbeddingService:
             if cached is not None:
                 return cached
 
-        prefixed   = f"Represent this sentence for searching relevant passages: {text}"
-        embedding  = self.model.encode(
+        prefixed = f"Represent this sentence for searching relevant passages: {text}"
+        embedding = self.model.encode(
             prefixed,
             convert_to_numpy=True,
             normalize_embeddings=True,
@@ -81,7 +82,9 @@ class EmbeddingService:
             return self._compute_batch(texts)
 
         # Partition into hits (cached) and misses (need compute)
-        cached_results, hit_idx, miss_idx = self._cache.get_batch(texts, self.model_name)
+        cached_results, hit_idx, miss_idx = self._cache.get_batch(
+            texts, self.model_name
+        )
 
         if not miss_idx:
             # All texts already cached

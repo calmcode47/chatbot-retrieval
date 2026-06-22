@@ -8,26 +8,25 @@ Extends RAGChain with conversation memory by:
 3. Passing condensed questions to the existing retrieval pipeline
 """
 
-from typing import List, Dict, Any, Tuple
-from loguru import logger
-
-from ingestion.embedder import EmbeddingService
-from retrieval.vector_store import VectorStore
-from retrieval.reranker import CrossEncoderReranker
-from retrieval.context_builder import ContextBuilder
-from generation.llm import get_ollama_llm
-from generation.prompt_templates import get_rag_prompt, CONDENSE_QUESTION_PROMPT
-from retrieval.hybrid_retriever import HybridRetriever
-
-
+from typing import Any, Dict, List, Tuple
 
 from configs.settings import get_config
+from generation.llm import get_ollama_llm
+from generation.prompt_templates import (CONDENSE_QUESTION_PROMPT,
+                                         get_rag_prompt)
+from ingestion.embedder import EmbeddingService
+from loguru import logger
+from pipeline.context_window import ContextWindowManager
+from retrieval.context_builder import ContextBuilder
+from retrieval.hybrid_retriever import HybridRetriever
+from retrieval.reranker import CrossEncoderReranker
+from retrieval.vector_store import VectorStore
 
 
 class ConversationalRAGChain:
     """
     Stateful RAG pipeline with conversation history.
-    
+
     Each session should maintain its own instance (or pass history externally).
     For the API, history is passed per-request (stateless server, stateful client).
     """
@@ -36,7 +35,7 @@ class ConversationalRAGChain:
         self,
         embedder: EmbeddingService = None,
         vector_store: VectorStore = None,
-        config_path: str = None,   # NEW: optional explicit config path
+        config_path: str = None,  # NEW: optional explicit config path
         # Explicit overrides still work — useful for testing
         model_name: str = None,
         top_k: int = None,
@@ -45,20 +44,37 @@ class ConversationalRAGChain:
         reranker_candidates: int = None,
         max_history_turns: int = None,
         use_hybrid_search: bool = None,
+        num_ctx: int = None,
     ):
         cfg = get_config(config_path)
 
         # Use explicit args if provided; fall back to config
-        self.top_k              = top_k or cfg.retrieval.top_k
-        self.score_threshold    = score_threshold if score_threshold is not None else cfg.retrieval.score_threshold
-        self.max_history_turns  = max_history_turns or cfg.conversation.max_history_turns
-        self.use_hybrid_search  = use_hybrid_search if use_hybrid_search is not None else (cfg.retrieval.strategy == "hybrid")
-        
-        effective_model         = model_name or cfg.llm.model
-        effective_reranker      = use_reranker if use_reranker is not None else cfg.retrieval.rerank
-        effective_candidates    = reranker_candidates or cfg.retrieval.reranker_candidates
+        self.top_k = top_k or cfg.retrieval.top_k
+        self.score_threshold = (
+            score_threshold
+            if score_threshold is not None
+            else cfg.retrieval.score_threshold
+        )
+        self.max_history_turns = max_history_turns or cfg.conversation.max_history_turns
+        self.use_hybrid_search = (
+            use_hybrid_search
+            if use_hybrid_search is not None
+            else (cfg.retrieval.strategy == "hybrid")
+        )
 
-        self.embedder     = embedder or EmbeddingService(
+        effective_model = model_name or cfg.llm.model
+        effective_reranker = (
+            use_reranker if use_reranker is not None else cfg.retrieval.rerank
+        )
+        effective_candidates = reranker_candidates or cfg.retrieval.reranker_candidates
+        effective_num_ctx = num_ctx or cfg.llm.num_ctx
+
+        self.context_manager = ContextWindowManager(
+            model_name=effective_model,
+            num_ctx=effective_num_ctx,
+        )
+
+        self.embedder = embedder or EmbeddingService(
             model_name=cfg.embedding.model_name,
             device=cfg.embedding.device,
         )
@@ -70,6 +86,7 @@ class ConversationalRAGChain:
             model=effective_model,
             base_url=cfg.llm.base_url,
             temperature=cfg.llm.temperature,
+            num_ctx=effective_num_ctx,
         )
         self.rag_prompt = get_rag_prompt()
 
@@ -96,11 +113,11 @@ class ConversationalRAGChain:
         """
         If there is chat history, rewrite the follow-up question
         into a standalone question using the LLM.
-        
+
         Args:
             question:     Current user message
             chat_history: List of (user_message, assistant_response) tuples
-        
+
         Returns:
             A standalone question (or the original if no history exists)
         """
@@ -109,7 +126,10 @@ class ConversationalRAGChain:
 
         # Format history as a readable string
         history_text = "\n".join(
-            [f"Human: {h}\nAssistant: {a}" for h, a in chat_history[-self.max_history_turns:]]
+            [
+                f"Human: {h}\nAssistant: {a}"
+                for h, a in chat_history[-self.max_history_turns :]
+            ]
         )
 
         # Use the condense prompt to rewrite the question
@@ -151,6 +171,7 @@ class ConversationalRAGChain:
         # Auto-detect if user is asking about a specific source file
         where_filter = None
         try:
+
             def clean_text(t: str) -> str:
                 return "".join(c for c in t.lower() if c.isalnum())
 
@@ -161,9 +182,13 @@ class ConversationalRAGChain:
             for source in sources_list:
                 base_name = source.rsplit(".", 1)[0] if "." in source else source
                 clean_src = clean_text(base_name)
-                if len(clean_src) >= 3 and (clean_src in norm_question or clean_src in norm_standalone):
+                if len(clean_src) >= 3 and (
+                    clean_src in norm_question or clean_src in norm_standalone
+                ):
                     where_filter = {"source_file": source}
-                    logger.info(f"Detected query target source file: '{source}'. Applying metadata filter.")
+                    logger.info(
+                        f"Detected query target source file: '{source}'. Applying metadata filter."
+                    )
                     break
         except Exception as e:
             logger.warning(f"Failed to check source file matching: {e}")
@@ -171,10 +196,14 @@ class ConversationalRAGChain:
         # Step 2 & 3: Retrieve
         fetch_k = 20 if self.reranker else self.top_k
         if self.use_hybrid_search and self.retriever:
-            search_results = self.retriever.search(standalone_question, top_k=fetch_k, where=where_filter)
+            search_results = self.retriever.search(
+                standalone_question, top_k=fetch_k, where=where_filter
+            )
         else:
             query_embedding = self.embedder.embed(standalone_question)
-            search_results = self.vector_store.search(query_embedding, top_k=fetch_k, where=where_filter)
+            search_results = self.vector_store.search(
+                query_embedding, top_k=fetch_k, where=where_filter
+            )
 
         # Step 4: Rerank
         if self.reranker and search_results:
@@ -184,10 +213,20 @@ class ConversationalRAGChain:
                 top_k=self.top_k,
             )
 
-        # Step 5: Build context and generate answer
+        # ── Context window fitting ────────────────────────────────────
+        # Count tokens in retrieved chunks. Trim if they would overflow
+        # the model's context window, removing lowest-ranked chunks first.
+        search_results, ctx_stats = self.context_manager.fit_chunks(
+            chunks=search_results,
+            query=standalone_question,
+        )
+
+        # Step 5: Build context and generate answer (using threshold=0.0 since fit_chunks already filtered them)
         threshold = 0.0 if where_filter else self.score_threshold
         context, sources = self.context_builder.build(search_results, threshold)
-        messages = self.rag_prompt.format_messages(context=context, question=standalone_question)
+        messages = self.rag_prompt.format_messages(
+            context=context, question=standalone_question
+        )
         response = self.llm.invoke(messages)
 
         return {
@@ -197,4 +236,5 @@ class ConversationalRAGChain:
             "sources": sources,
             "chunks_used": len(sources),
             "history_turns_used": len(chat_history),
+            "context_window": ctx_stats,  # NEW: expose in API response
         }
