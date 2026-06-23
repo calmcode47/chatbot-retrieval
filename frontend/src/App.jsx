@@ -12,7 +12,7 @@ function App() {
     () => localStorage.getItem("documind_active_page") || "home"
   );
 
-  useScrollReveal();
+  useScrollReveal(activePage);
 
   const handleSetActivePage = (page) => {
     setActivePage(page);

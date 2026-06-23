@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export function useScrollReveal(rootMargin = '0px 0px -70px 0px') {
+export function useScrollReveal(activePage, rootMargin = '0px 0px -70px 0px') {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => entries.forEach(entry => {
@@ -11,7 +11,15 @@ export function useScrollReveal(rootMargin = '0px 0px -70px 0px') {
       }),
       { rootMargin, threshold: 0.08 }
     );
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+    
+    // Query elements after a short frame to ensure the page has mounted
+    const frame = requestAnimationFrame(() => {
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [activePage, rootMargin]);
 }
