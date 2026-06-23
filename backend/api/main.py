@@ -2,6 +2,7 @@
 FastAPI application factory.
 """
 
+import os
 import shutil
 import time
 import uuid
@@ -66,33 +67,34 @@ async def lifespan(app: FastAPI):
     )
 
     # ── Warmup the Ollama LLM ──────────────────────────────────
-    # This forces Ollama to load model weights into RAM NOW,
-    # so the first real user query does not bear the cold-start cost.
-    logger.info(
-        f"Warming up Ollama LLM... (loading model weights into RAM at {cfg.llm.base_url})"
-    )
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            warmup_payload = {
-                "model": cfg.llm.model,
-                "prompt": "warmup",
-                "stream": False,
-                "options": {"num_predict": 1},  # Generate only 1 token — fast
-            }
-            response = await client.post(
-                f"{cfg.llm.base_url}/api/generate",
-                json=warmup_payload,
-            )
-            if response.status_code == 200:
-                logger.success("Ollama warmup complete. Model is in RAM.")
-            else:
-                logger.warning(
-                    f"Ollama warmup returned {response.status_code}. Check if 'ollama serve' is running."
-                )
-    except httpx.ConnectError:
-        logger.error(
-            f"Cannot reach Ollama at {cfg.llm.base_url}. Start it with: ollama serve"
+    # Only run if explicitly using Ollama
+    use_ollama = os.getenv("USE_OLLAMA", "").strip().lower() == "true"
+    if use_ollama:
+        logger.info(
+            f"Warming up Ollama LLM... (loading model weights into RAM at {cfg.llm.base_url})"
         )
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                warmup_payload = {
+                    "model": cfg.llm.model,
+                    "prompt": "warmup",
+                    "stream": False,
+                    "options": {"num_predict": 1},  # Generate only 1 token — fast
+                }
+                response = await client.post(
+                    f"{cfg.llm.base_url}/api/generate",
+                    json=warmup_payload,
+                )
+                if response.status_code == 200:
+                    logger.success("Ollama warmup complete. Model is in RAM.")
+                else:
+                    logger.warning(
+                        f"Ollama warmup returned {response.status_code}. Check if 'ollama serve' is running."
+                    )
+        except httpx.ConnectError:
+            logger.error(
+                f"Cannot reach Ollama at {cfg.llm.base_url}. Start it with: ollama serve"
+            )
     # ─────────────────────────────────────────────────────────────────
 
     logger.success("DocuMind API ready. All components initialized.")
