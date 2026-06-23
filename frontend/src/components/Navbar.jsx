@@ -1,6 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { API_BASE } from "../settings";
 
 export default function Navbar({ currentPage, onNavigate }) {
+  const [apiStatus, setApiStatus] = useState("checking"); // "checking" | "online" | "offline"
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(4000) });
+        if (!cancelled) setApiStatus(res.ok ? "online" : "offline");
+      } catch {
+        if (!cancelled) setApiStatus("offline");
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 15000); // re-check every 15 s
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  const statusMap = {
+    checking: { color: "#f59e0b", glow: "rgba(245,158,11,0.7)",  label: "CONNECTING…" },
+    online:   { color: "#22c55e", glow: "rgba(34,197,94,0.7)",   label: "API ONLINE"  },
+    offline:  { color: "#ef4444", glow: "rgba(239,68,68,0.7)",   label: "API OFFLINE" },
+  };
+  const { color, glow, label } = statusMap[apiStatus];
+
   return (
     <nav style={{
       position:'fixed', top:0, left:0, right:0, zIndex:100,
@@ -49,11 +76,21 @@ export default function Navbar({ currentPage, onNavigate }) {
           ))}
         </div>
 
-        {/* Status */}
+        {/* Live Status indicator */}
         <div style={{ display:'flex', alignItems:'center', gap:'var(--sp-sm)' }}>
-          <span style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e',
-                          boxShadow:'0 0 7px rgba(34,197,94,0.7)' }} />
-          <span className="mono-sm" style={{ color:'var(--text-muted)' }}>OFFLINE · SECURE</span>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: color,
+            boxShadow: `0 0 8px ${glow}`,
+            transition: 'background 0.5s ease, box-shadow 0.5s ease',
+            animation: apiStatus === 'online' ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+          }} />
+          <span className="mono-sm" style={{
+            color: apiStatus === 'offline' ? '#ef4444' : 'var(--text-muted)',
+            transition: 'color 0.5s ease',
+          }}>
+            {label}
+          </span>
         </div>
 
       </div>
