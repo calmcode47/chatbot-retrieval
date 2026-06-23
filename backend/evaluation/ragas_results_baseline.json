@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-06-20T22:13:47.136627",
+  "num_questions": 18,
+  "rag_model": "llama3.2:3b",
+  "judge_model": "mistral:7b",
+  "metrics": {
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.84685325383259,
+    "context_precision": 0.0,
+    "context_recall": 0.9419642857142857
+  },
+  "judge_time_seconds": 785.4,
+  "total_time_seconds": 846.7
+}

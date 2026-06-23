@@ -166,10 +166,18 @@ async def chat(request: ChatRequest):
         answer = "⚠️ The model returned an empty response. Please try again."
 
     # Persist this turn to the DB
+    import json
+    meta = {
+        "sources": result["sources"],
+        "chunks_used": result["chunks_used"],
+        "latency_ms": round(latency_ms, 2),
+        "condensed_question": result.get("condensed_question", result["question"]),
+    }
     session_store.add_turn(
         session_id=session_id,
         user_message=request.question,
         assistant_message=answer,
+        assistant_metadata=json.dumps(meta),
     )
 
     ctx_stats = None

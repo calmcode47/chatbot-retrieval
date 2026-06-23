@@ -1,0 +1,1 @@
+This is a test document with some content for checking if RAG ingestion and retrieval are working properly. It discusses the key benefits of DocuMind: it runs entirely locally, supports hybrid search, and provides citation sources.

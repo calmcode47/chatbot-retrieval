@@ -93,23 +93,17 @@ export default function Dashboard() {
   const [inputValue, setInputValue] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
-  const [sessionId, setSessionId] = useState(
-    () => localStorage.getItem("documind_session_id") || null
-  );
+  const [sessionId, setSessionId] = useState(null);
   const [sessionInfo, setSessionInfo] = useState(null);
   const [expandedSources, setExpandedSources] = useState({});
   const [uploadError, setUploadError] = useState("");
 
   const chatEndRef = useRef(null);
 
-  // Persist session_id whenever it changes
+  // Clear any stale session from localStorage on mount (page refresh = clean slate)
   useEffect(() => {
-    if (sessionId) {
-      localStorage.setItem("documind_session_id", sessionId);
-    } else {
-      localStorage.removeItem("documind_session_id");
-    }
-  }, [sessionId]);
+    localStorage.removeItem("documind_session_id");
+  }, []);
 
   // Fetch session stats when session_id is set
   useEffect(() => {
@@ -152,18 +146,37 @@ export default function Dashboard() {
   useEffect(() => {
     if (sessionId) {
       fetch(`${API_BASE}/sessions/${sessionId}/history`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) {
+            throw new Error("Session history not found");
+          }
+          return r.json();
+        })
         .then((data) => {
           if (data.messages) {
-            const formatted = data.messages.map((m) => ({
-              role: m.role,
-              content: m.content,
-              timestamp: m.timestamp,
-            }));
+            const formatted = data.messages.map((m) => {
+              const baseMsg = {
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp,
+              };
+              if (m.role === "assistant" && m.metadata) {
+                baseMsg.sources = m.metadata.sources || [];
+                baseMsg.latency = m.metadata.latency_ms;
+                baseMsg.chunks = m.metadata.chunks_used;
+                baseMsg.condensed = m.metadata.condensed_question;
+              }
+              return baseMsg;
+            });
             setMessages(formatted);
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.error("Failed to load history:", err);
+          localStorage.removeItem("documind_session_id");
+          setSessionId(null);
+          setMessages([]);
+        });
     } else {
       setMessages([]);
     }
@@ -227,9 +240,21 @@ export default function Dashboard() {
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
+    const oldSessionId = sessionId;
+    localStorage.removeItem("documind_session_id");
     setSessionId(null);
     setMessages([]);
+
+    if (oldSessionId) {
+      try {
+        await fetch(`${API_BASE}/sessions/${oldSessionId}`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.error("Failed to delete session on backend", err);
+      }
+    }
   };
 
   const handleSendMessage = async (e) => {

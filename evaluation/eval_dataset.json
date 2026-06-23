@@ -1,0 +1,146 @@
+[
+  {
+    "question": "What is the dimensionality of the vector produced by the embedding model?",
+    "ground_truth": "768-dimensional vector",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "└────────┬────────┘\n         │  List of text chunks (with metadata)\n         ▼\n┌─────────────────┐\n│ Embedding Model  │  ← sentence-transformers (BAAI/bge-base-en-v1.5)\n│  (local, CPU/MPS)│    Converts each chunk → 768-dimensional vector\n│                  │    Runs entirely on-device\n└────────┬────"
+  },
+  {
+    "question": "What technology is used to generate optimized alternate routes in seconds?",
+    "ground_truth": "Google Gemini 1.5 Flash",
+    "source_doc": "AI-Powered-Supply-Chain-Disruption-Intelligence.pdf",
+    "source_chunk": "TEAM PROMPT WARRIOR\nHACKATHON BUILD WITH AI 2026\nChainSight\nAI-Powered Supply Chain Disruption \nIntelligence\nA production-ready platform that transforms supply chain management from reactive to proactive — detecting disruption patterns \nearly, predicting their impact on shipments, and generating opt"
+  },
+  {
+    "question": "Does the document throw a user-friendly `Error` on HTTP 503?",
+    "ground_truth": "yes",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "162. Does it throw a user-friendly `Error` on HTTP 503 (service unavailable)?\n163. Is the entire fetch wrapped in a try/catch for network failures (server unreachable)?"
+  },
+  {
+    "question": "Does the system append source citations?",
+    "ground_truth": "yes",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "│  Processor       │    Appends source citations\n│                  │    Evaluates faithfulness (optional RAGAS)\n└────────┬────────┘\n         │\n         ▼\n      USER (via Streamlit UI or FastAPI JSON)\n```"
+  },
+  {
+    "question": "What is the current value of `API_BASE_URL` in `api.js`?",
+    "ground_truth": "localhost or a live deployment URL",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "275. What is the current value of `API_BASE_URL` in `api.js`? Is it pointing to localhost or a live deployment URL?\n276. Will this value need to change before the production demo? If so, is it in one place only?\n277. Is there any hardcoded `localhost:8000` URL anywhere in the codebase that is NOT co"
+  },
+  {
+    "question": "What is the name of the frontend UI used by the document Q&A system?",
+    "ground_truth": "Streamlit",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "| **Local LLM** | Ollama (LLaMA 3.2 / Mistral 7B) | Generates grounded answers |\n| **API Backend** | FastAPI | REST endpoints for UI/client |\n| **Frontend UI** | Streamlit | Chat interface + file upload |\n| **Evaluation** | RAGAS | Measures faithfulness, relevancy |\n| **Configuration** | Pydantic Se"
+  },
+  {
+    "question": "What is the name of the persistence folder for ChromaDB?",
+    "ground_truth": "chroma_db/",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "│   ├── processed/              # Chunked text (optional cache)\n│   └── chroma_db/              # ChromaDB persistence folder\n│\n├── notebooks/\n│   ├── 01_embedding_exploration.ipynb\n│   ├── 02_chunking_strategies.ipynb\n│   └── 03_retrieval_evaluation.ipynb\n│\n├── tests/\n│   ├── test_ingestion.py\n│   "
+  },
+  {
+    "question": "What is the chunk size used by the Text Splitter?",
+    "ground_truth": "512",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "```\nRAW DOCUMENTS\n      │\n      ▼\n┌─────────────────┐\n│  Document Loader │  ← PyMuPDF (PDF), BeautifulSoup (Web), plain text\n│   (LangChain)    │    Handles multiple file formats uniformly\n└────────┬────────┘\n         │  Raw text extracted\n         ▼\n┌─────────────────┐\n│  Text Splitter   │  ← Recur"
+  },
+  {
+    "question": "What does the connection status indicate for a field in the API response?",
+    "ground_truth": "WIRED, MISSING, or BROKEN.",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "### 3.2 — Field-by-Field Connection Map\n\nFor each field in the API response, identify: (a) the HTML element ID it writes to, (b) the JS function that handles it, (c) whether the connection is WIRED, MISSING, or BROKEN."
+  },
+  {
+    "question": "What is the data type of the 'cited_sources' field in the document?",
+    "ground_truth": "object",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "\"key_claims\": [\"string\"],\n  \"reasoning\": \"string\",\n  \"advice\": \"string\",\n  \"domain_info\": {\"domain\": \"string\", \"rating\": \"string\", \"bias\": \"string\"} | null,\n  \"cited_sources\": [{\"domain\": \"string\", \"rating\": \"string\", \"bias\": \"string\"}],\n  \"corroboration_results\": [{\"claim\": \"string\", \"results\": [{\""
+  },
+  {
+    "question": "What is the purpose of the POST /api/disruptions/analyze endpoint?",
+    "ground_truth": "Trigger Gemini AI to identify top 5 risks across the fleet",
+    "source_doc": "AI-Powered-Supply-Chain-Disruption-Intelligence.pdf",
+    "source_chunk": "POST\n/api/disruptions/analyze\nTrigger Gemini AI to identify top 5 risks across the fleet\nPOST\n/api/optimizer/{id}\nGenerate a Gemini-optimized alternate route for a specific \nshipment\nPOST\n/api/assistant/chat\nQuery the AI assistant with natural language context\nWS\n/ws/alerts\nReal-time WebSocket feed "
+  },
+  {
+    "question": "Does it return a dict with keys “type”, “content”, and “truncated”?",
+    "ground_truth": "Yes",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "26. Does it return a dict with keys `\"type\"`, `\"content\"`, and `\"truncated\"`?\n27. Is `sanitize_text()` from `utils/validators.py` called on the input before classification?"
+  },
+  {
+    "question": "Does the frontend keep the loading state visible for at least 30-45 seconds when the server is sleeping?",
+    "ground_truth": "yes",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "282. When the server is sleeping (Render cold start), the first request can take 30–45 seconds. Does the frontend handle this — keeping the loading state visible and not timing out prematurely?"
+  },
+  {
+    "question": "Is the `input` key name used in the fetch body?",
+    "ground_truth": "true",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "274. Is the `input` key name used in the fetch body (not `\"text\"`, `\"content\"`, `\"query\"`, or any other variation)? Any other key name will cause HTTP 422 Unprocessable Entity from the backend."
+  },
+  {
+    "question": "What is the name of the table shown in the FIELD CONNECTION MAP — SUMMARY TABLE section?",
+    "ground_truth": "FIELD CONNECTION MAP — SUMMARY TABLE",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "LOW PRIORITY ISSUES (polish and edge cases)\n────────────────────────────────────────────\n[Numbered list. Each item: issue description, which file, impact.]\n\n\n╔══════════════════════════════════════════════════════════════╗\n║              FIELD CONNECTION MAP — SUMMARY TABLE            ║\n╚═══════════"
+  },
+  {
+    "question": "What type of pipeline runs offline before user interaction?",
+    "ground_truth": "Ingestion Pipeline",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "---\n\n## 3. Core Pipelines\n\n### 3.1 Ingestion Pipeline\n\nThis pipeline runs **offline** (before user interaction). It converts raw documents into searchable vector embeddings stored on disk."
+  },
+  {
+    "question": "What is the purpose of cross-encoder re-ranking in the Context Builder?",
+    "ground_truth": "Optional: cross-encoder re-ranking for precision",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "└────────┬────────┘\n         │  [(chunk_text, score, metadata), ...]\n         ▼\n┌─────────────────┐\n│  Context Builder │  ← Formats retrieved chunks into a structured context\n│  / Re-ranker     │    Optional: cross-encoder re-ranking for precision\n│                  │    Filters chunks below relevan"
+  },
+  {
+    "question": "What type of layout is used in the frontend/css/main.css file?",
+    "ground_truth": "base",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "**Frontend files:**\n```\nfrontend/index.html       — Single-page app (input + results, no navigation)\nfrontend/css/main.css     — CSS variables, typography, base layout\nfrontend/css/components.css — Cards, tags, verdict banner, score bar, buttons\nfrontend/css/animations.css — Loading states, result r"
+  },
+  {
+    "question": "What is the name of the query engine used as an alternative to LlamaIndex?",
+    "ground_truth": "LlamaIndex",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "│   ├── __init__.py\n│   ├── rag_chain.py            # LangChain RetrievalQA chain\n│   └── query_engine.py         # LlamaIndex query engine (alternative)\n│\n├── api/                        # FastAPI REST backend\n│   ├── __init__.py\n│   ├── main.py                 # App factory + routes\n│   ├── routes"
+  },
+  {
+    "question": "What is the title of the section that describes the critical connection chain?",
+    "ground_truth": "3.1 — The Critical Connection Chain",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "### 3.1 — The Critical Connection Chain\n\nTrace the complete data flow for a successful text analysis and answer each question:"
+  },
+  {
+    "question": "What is Gemini?",
+    "ground_truth": "Gemini",
+    "source_doc": "AI-Powered-Supply-Chain-Disruption-Intelligence.pdf",
+    "source_chunk": "shipments are at risk?\" or \"What's the \non-time rate for Asia-Pacific?\" and \nreceive instant, contextual answers \npowered by Gemini."
+  },
+  {
+    "question": "What is the name of the query engine alternative to LlamaIndex?",
+    "ground_truth": "LlamaIndex",
+    "source_doc": "01_ARCHITECTURE.md",
+    "source_chunk": "│   ├── __init__.py\n│   ├── rag_chain.py            # LangChain RetrievalQA chain\n│   └── query_engine.py         # LlamaIndex query engine (alternative)\n│\n├── api/                        # FastAPI REST backend\n│   ├── __init__.py\n│   ├── main.py                 # App factory + routes\n│   ├── routes"
+  },
+  {
+    "question": "What is the required format for creating a branch from `main`?",
+    "ground_truth": "feature/ticket-number-description",
+    "source_doc": "engineering_guidelines.txt",
+    "source_chunk": ". Developers must create branches from `main` using the format `feature/ticket-number-description`"
+  },
+  {
+    "question": "What is the purpose of the 'corroboration_results' signal?",
+    "ground_truth": "There is no specific purpose mentioned for the 'corroboration_results' signal in this passage.",
+    "source_doc": "COMPLETE_PROJECT_ANALYSIS_PROMPT.md",
+    "source_chunk": "| credible_signals       |                 |                 |         |\n| manipulation_tactics   |                 |                 |         |\n| reasoning              |                 |                 |         |\n| advice                 |                 |                 |         |\n| domain"
+  }
+]

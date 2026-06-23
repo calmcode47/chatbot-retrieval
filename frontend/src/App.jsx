@@ -7,18 +7,25 @@ import About from "./pages/About";
 import "./App.css";
 
 function App() {
-  const [activePage, setActivePage] = useState("home");
+  const [activePage, setActivePage] = useState(
+    () => localStorage.getItem("documind_active_page") || "home"
+  );
+
+  const handleSetActivePage = (page) => {
+    setActivePage(page);
+    localStorage.setItem("documind_active_page", page);
+  };
 
   const renderPage = () => {
     switch (activePage) {
       case "home":
-        return <Home setActivePage={setActivePage} />;
+        return <Home setActivePage={handleSetActivePage} />;
       case "dashboard":
         return <Dashboard />;
       case "about":
         return <About />;
       default:
-        return <Home setActivePage={setActivePage} />;
+        return <Home setActivePage={handleSetActivePage} />;
     }
   };
 
@@ -28,7 +35,7 @@ function App() {
       <ThreeBackground />
 
       {/* Navigation Header */}
-      <Navbar activePage={activePage} setActivePage={setActivePage} />
+      <Navbar activePage={activePage} setActivePage={handleSetActivePage} />
 
       {/* Main Pages */}
       <div className="main-content-layout">

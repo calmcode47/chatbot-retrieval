@@ -70,6 +70,10 @@ class SessionStore:
                 CREATE INDEX IF NOT EXISTS idx_messages_session_id
                     ON messages(session_id, id);
             """)
+            try:
+                conn.execute("ALTER TABLE messages ADD COLUMN metadata TEXT")
+            except sqlite3.OperationalError:
+                pass
 
     # ── Session lifecycle ──────────────────────────────────────────────
 
@@ -118,7 +122,7 @@ class SessionStore:
 
     # ── Message operations ─────────────────────────────────────────────
 
-    def add_message(self, session_id: str, role: str, content: str) -> None:
+    def add_message(self, session_id: str, role: str, content: str, metadata: Optional[str] = None) -> None:
         """
         Append one message to a session.
 
@@ -126,12 +130,13 @@ class SessionStore:
             session_id: Target session
             role:       'user' or 'assistant'
             content:    Message text
+            metadata:   Optional JSON string metadata
         """
         now = datetime.now().isoformat(timespec="seconds")
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO messages(session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-                (session_id, role, content, now),
+                "INSERT INTO messages(session_id, role, content, timestamp, metadata) VALUES (?, ?, ?, ?, ?)",
+                (session_id, role, content, now, metadata),
             )
             conn.execute(
                 "UPDATE sessions SET last_active_at = ? WHERE id = ?",
@@ -139,11 +144,11 @@ class SessionStore:
             )
 
     def add_turn(
-        self, session_id: str, user_message: str, assistant_message: str
+        self, session_id: str, user_message: str, assistant_message: str, assistant_metadata: Optional[str] = None
     ) -> None:
         """Convenience method: add a user + assistant turn in one call."""
         self.add_message(session_id, "user", user_message)
-        self.add_message(session_id, "assistant", assistant_message)
+        self.add_message(session_id, "assistant", assistant_message, assistant_metadata)
 
     def get_history(
         self,
@@ -188,13 +193,23 @@ class SessionStore:
         return turns
 
     def get_full_history(self, session_id: str) -> List[dict]:
-        """Return all messages in a session as a list of {role, content, timestamp} dicts."""
+        """Return all messages in a session as a list of {role, content, timestamp, metadata} dicts."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT role, content, timestamp FROM messages WHERE session_id = ? ORDER BY id",
+                "SELECT role, content, timestamp, metadata FROM messages WHERE session_id = ? ORDER BY id",
                 (session_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        import json
+        result = []
+        for row in rows:
+            d = dict(row)
+            if d.get("metadata"):
+                try:
+                    d["metadata"] = json.loads(d["metadata"])
+                except Exception:
+                    pass
+            result.append(d)
+        return result
 
     # ── Management ────────────────────────────────────────────────────
 
