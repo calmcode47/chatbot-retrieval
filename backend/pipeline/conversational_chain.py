@@ -11,7 +11,7 @@ Extends RAGChain with conversation memory by:
 from typing import Any, Dict, List, Tuple
 
 from configs.settings import get_config
-from generation.llm import get_ollama_llm
+from generation.llm import get_llm
 from generation.prompt_templates import (CONDENSE_QUESTION_PROMPT,
                                          get_rag_prompt)
 from ingestion.embedder import EmbeddingService
@@ -82,7 +82,7 @@ class ConversationalRAGChain:
             persist_directory=cfg.vector_store.persist_directory,
         )
         self.context_builder = ContextBuilder()
-        self.llm = get_ollama_llm(
+        self.llm = get_llm(
             model=effective_model,
             base_url=cfg.llm.base_url,
             temperature=cfg.llm.temperature,

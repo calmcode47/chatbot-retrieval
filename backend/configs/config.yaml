@@ -7,8 +7,8 @@ app:
 
 embedding:
   model_name: "BAAI/bge-base-en-v1.5"
-  device: "mps"
-  batch_size: 32
+  device: "cpu"  # Use "mps" locally on Apple Silicon; Railway/Docker uses CPU
+  batch_size: 16  # Reduced batch size to lower memory pressure in Docker
   cache_dir: "./models"
   use_cache: true
   cache_directory: "./data/embedding_cache"

@@ -12,11 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# PyTorch CPU-only inside Docker (MPS unavailable in VM)
-# The container calls Ollama on the HOST for LLM — no MPS needed for inference
-# Embedding model (sentence-transformers) runs on CPU in the container
+# PyTorch CPU-only inside Docker (MPS unavailable on Linux/Railway)
+# Install torch first via CPU-only index, then remaining requirements
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir "torch>=2.3.0" --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 
@@ -39,12 +38,15 @@ COPY evaluation/ ./evaluation/
 
 RUN mkdir -p data/raw data/chroma_db models
 
+# Force CPU embedding device — MPS is Apple Silicon only and unavailable in Docker
+ENV EMBEDDING_DEVICE=cpu
+
 RUN useradd -m -u 1001 documind && chown -R documind:documind /app
 USER documind
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=15s --start-period=120s --retries=5 \
     CMD python -c "import httpx; httpx.get('http://localhost:8000/api/v1/health').raise_for_status()"
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
