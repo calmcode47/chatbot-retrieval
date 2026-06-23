@@ -221,11 +221,8 @@ class ConversationalRAGChain:
             query=standalone_question,
         )
 
-        # Step 5: Build context and generate answer (using threshold=0.0 since fit_chunks already filtered them)
+        # Step 5: Build context and generate answer (threshold=0.0 bypasses score filter)
         threshold = 0.0 if where_filter else self.score_threshold
-        logger.info(f"RAG query threshold: {threshold}")
-        for idx, r in enumerate(search_results):
-            logger.info(f"Retrieved chunk {idx} - ID: {r.get('id')} - Score: {r.get('score')} - RRF Score: {r.get('rrf_score')} - Source: {r.get('source')}")
         context, sources = self.context_builder.build(search_results, threshold)
         messages = self.rag_prompt.format_messages(
             context=context, question=standalone_question
