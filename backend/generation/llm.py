@@ -57,8 +57,7 @@ def get_llm(
             test = llm.invoke("Respond with exactly: OK")
             logger.info(f"Ollama ready. Health: {test.content[:20]}")
         except Exception as e:
-            logger.error(f"Ollama connection failed: {e}. Is 'ollama serve' running?")
-            raise
+            logger.warning(f"Ollama connection check failed: {e}. Startup will continue, but LLM calls will fail unless GROQ_API_KEY is configured.")
 
         return llm
 
