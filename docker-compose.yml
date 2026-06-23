@@ -16,7 +16,8 @@ services:
     environment:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.2:3b
-      - EMBEDDING_DEVICE=cpu   # No MPS in Docker — CPU for embedding
+      - USE_OLLAMA=true          # Route LLM calls to host Ollama, not local SLM
+      - EMBEDDING_DEVICE=cpu     # No MPS in Docker — CPU for embedding
       - PYTHONPATH=/app
       - LOG_LEVEL=INFO
     # This allows the container to reach the macOS host's Ollama
@@ -39,10 +40,11 @@ services:
     ports:
       - "8501:8501"
     environment:
-      # Points the Vite server-side proxy to the backend container via Docker DNS.
-      # The browser always calls /api/v1 on the same origin (port 8501);
-      # Vite forwards those requests to documind-api:8000 inside Docker's network.
-      - API_PROXY_TARGET=http://documind-api:8000
+      # BACKEND_URL is read by entrypoint.sh → substituted into nginx.conf at startup.
+      # Nginx proxies /api/v1/* from the browser to this internal Docker service URL.
+      # (API_PROXY_TARGET was the old Vite dev-server variable — not used in production builds.)
+      - BACKEND_URL=http://documind-api:8000
+      - PORT=8501
     depends_on:
       documind-api:
         condition: service_healthy
