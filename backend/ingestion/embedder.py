@@ -26,8 +26,18 @@ class EmbeddingService:
         use_cache: bool = True,
         cache_dir: str = "./data/embedding_cache",
     ):
+        # Resolve device compatibility automatically
+        if device == "mps" and not torch.backends.mps.is_available():
+            logger.warning("MPS device requested but not available. Automatically falling back.")
+            device = None
+
         if device is None:
-            device = "mps" if torch.backends.mps.is_available() else "cpu"
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
 
         self.device = device
         self.model_name = model_name
