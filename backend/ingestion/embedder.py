@@ -2,20 +2,28 @@
 """
 Embedding service with optional persistent cache.
 
+Memory optimisations for cloud deployment (e.g. Railway 1 GB limit):
+  - LAZY loading: the SentenceTransformer weights are NOT loaded at startup.
+    They are loaded on the first embed() / embed_batch() call.
+  - Set EMBEDDING_MODEL env var to override the model (e.g. BAAI/bge-small-en-v1.5
+    uses ~130 MB vs ~440 MB for bge-base-en-v1.5).
+
 Cache is ON by default. Set use_cache=False to disable (e.g., in unit tests).
 """
 
+import os
+import threading
 from typing import List, Optional
 
-import torch
 from loguru import logger
-from sentence_transformers import SentenceTransformer
 
 
 class EmbeddingService:
     """
-    Produces dense embeddings using BAAI/bge-base-en-v1.5.
-    Integrates a persistent disk cache to skip recomputing known vectors.
+    Produces dense embeddings using a SentenceTransformer model.
+
+    The model is loaded LAZILY on the first embed call to avoid OOM during
+    startup in memory-constrained environments (e.g. Railway free tier).
     """
 
     def __init__(
@@ -26,40 +34,70 @@ class EmbeddingService:
         use_cache: bool = True,
         cache_dir: str = "./data/embedding_cache",
     ):
-        # Resolve device compatibility automatically
-        if device == "mps" and not torch.backends.mps.is_available():
-            logger.warning("MPS device requested but not available. Automatically falling back.")
-            device = None
-
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif torch.backends.mps.is_available():
-                device = "mps"
-            else:
-                device = "cpu"
-
-        self.device = device
-        self.model_name = model_name
+        # Allow env var override for the model (cloud-friendly smaller model)
+        self.model_name = os.getenv("EMBEDDING_MODEL", model_name)
+        self.device = device  # resolved lazily
         self.batch_size = batch_size
+        self._model = None
+        self._model_lock = threading.Lock()
 
-        logger.info(f"Loading embedding model '{model_name}' on '{device}'...")
-        self.model = SentenceTransformer(model_name, device=device)
-        logger.success(
-            f"Embedding model ready. "
-            f"Dimension: {self.model.get_sentence_embedding_dimension()}"
+        logger.info(
+            f"EmbeddingService configured: model='{self.model_name}' "
+            f"(lazy — will load on first use)"
         )
 
         # Cache setup
         self._cache = None
         if use_cache:
             from ingestion.embedding_cache import EmbeddingCache
-
             self._cache = EmbeddingCache(cache_dir=cache_dir)
+
+    # ── Lazy model loader ──────────────────────────────────────────────
+
+    def _resolve_device(self) -> str:
+        """Pick best available device: mps > cuda > cpu."""
+        import torch
+        d = self.device
+        if d == "mps" and not torch.backends.mps.is_available():
+            logger.warning("MPS requested but not available — falling back to CPU.")
+            d = None
+        if d is None:
+            if torch.cuda.is_available():
+                d = "cuda"
+            elif torch.backends.mps.is_available():
+                d = "mps"
+            else:
+                d = "cpu"
+        return d
+
+    def _get_model(self):
+        """Return the SentenceTransformer model, loading it on first call (thread-safe)."""
+        if self._model is None:
+            with self._model_lock:
+                if self._model is None:  # double-checked locking
+                    from sentence_transformers import SentenceTransformer
+                    device = self._resolve_device()
+                    self.device = device
+                    logger.info(
+                        f"Loading embedding model '{self.model_name}' on '{device}'..."
+                    )
+                    self._model = SentenceTransformer(self.model_name, device=device)
+                    logger.success(
+                        f"Embedding model ready. "
+                        f"Dimension: {self._model.get_sentence_embedding_dimension()}"
+                    )
+        return self._model
+
+    # ── Public interface ───────────────────────────────────────────────
+
+    @property
+    def model(self):
+        """Backwards-compat alias so existing callers that reference .model still work."""
+        return self._get_model()
 
     @property
     def dimension(self) -> int:
-        return self.model.get_sentence_embedding_dimension()
+        return self._get_model().get_sentence_embedding_dimension()
 
     def embed(self, text: str) -> List[float]:
         """Embed a single string. Returns cached result if available."""
@@ -69,7 +107,7 @@ class EmbeddingService:
                 return cached
 
         prefixed = f"Represent this sentence for searching relevant passages: {text}"
-        embedding = self.model.encode(
+        embedding = self._get_model().encode(
             prefixed,
             convert_to_numpy=True,
             normalize_embeddings=True,
@@ -97,11 +135,9 @@ class EmbeddingService:
         )
 
         if not miss_idx:
-            # All texts already cached
             logger.debug(f"embed_batch: {len(texts)} texts — 100% cache hit")
             return cached_results
 
-        # Compute only the misses
         miss_texts = [texts[i] for i in miss_idx]
         logger.info(
             f"embed_batch: {len(texts)} texts — "
@@ -109,10 +145,8 @@ class EmbeddingService:
         )
         computed = self._compute_batch(miss_texts)
 
-        # Store computed embeddings in cache
         self._cache.set_batch(miss_texts, self.model_name, computed)
 
-        # Merge: fill in computed results at miss positions
         for miss_position, computed_vec in zip(miss_idx, computed):
             cached_results[miss_position] = computed_vec
 
@@ -122,7 +156,7 @@ class EmbeddingService:
         """Run the actual model inference on a batch of texts."""
         if not texts:
             return []
-        embeddings = self.model.encode(
+        embeddings = self._get_model().encode(
             texts,
             batch_size=self.batch_size,
             convert_to_numpy=True,

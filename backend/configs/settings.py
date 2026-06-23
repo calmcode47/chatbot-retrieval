@@ -168,6 +168,24 @@ def get_config(config_path: str = None) -> AppConfig:
     with open(path) as f:
         raw = yaml.safe_load(f)
 
+    # ── Railway auto-detection ────────────────────────────────────────
+    # Railway sets RAILWAY_ENVIRONMENT automatically on every deployment.
+    # When detected, switch to a memory-efficient profile:
+    #   • bge-small-en-v1.5  (~130 MB) instead of bge-base-en-v1.5 (~440 MB)
+    #   • Disable cross-encoder reranker                            (~500 MB)
+    # This keeps peak RAM well under 1 GB so the service doesn't OOM.
+    is_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+    if is_railway:
+        logger.info(
+            "Railway environment detected — switching to memory-efficient profile "
+            "(bge-small embedding, reranker disabled)."
+        )
+        raw.setdefault("embedding", {})["model_name"] = os.getenv(
+            "EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"
+        )
+        raw.setdefault("retrieval", {})["rerank"] = False
+
+    # ── Standard env var overrides ────────────────────────────────────
     if "OLLAMA_BASE_URL" in os.environ:
         raw.setdefault("llm", {})["base_url"] = os.environ["OLLAMA_BASE_URL"]
 
@@ -176,6 +194,14 @@ def get_config(config_path: str = None) -> AppConfig:
 
     if "EMBEDDING_DEVICE" in os.environ:
         raw.setdefault("embedding", {})["device"] = os.environ["EMBEDDING_DEVICE"]
+
+    if "EMBEDDING_MODEL" in os.environ and not is_railway:
+        # Allow explicit override even outside Railway (Railway case handled above)
+        raw.setdefault("embedding", {})["model_name"] = os.environ["EMBEDDING_MODEL"]
+
+    # RERANK=false disables the cross-encoder (saves ~500 MB RAM)
+    if os.getenv("RERANK", "").strip().lower() == "false":
+        raw.setdefault("retrieval", {})["rerank"] = False
 
     if "CHROMA_DB_DIR" in os.environ:
         raw.setdefault("vector_store", {})["persist_directory"] = os.environ[
@@ -187,5 +213,10 @@ def get_config(config_path: str = None) -> AppConfig:
         )
 
     config = AppConfig(**raw)
-    logger.debug(f"Config loaded from '{path}'")
+    logger.info(
+        f"Config loaded from '{path}' | "
+        f"embedding={config.embedding.model_name} | "
+        f"rerank={config.retrieval.rerank} | "
+        f"railway={is_railway}"
+    )
     return config

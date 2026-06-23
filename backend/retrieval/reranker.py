@@ -1,18 +1,20 @@
 """
 Cross-encoder re-ranker using BAAI/bge-reranker-base.
 
-Improves retrieval precision by re-scoring bi-encoder candidates
-using a cross-attention model that reads query and document together.
+Memory note: the cross-encoder uses ~500 MB RAM, which is too much for
+Railway's 1 GB free tier when combined with the embedding model.
+Set RERANK=false (or rerank=false in config.yaml) to disable it on
+memory-constrained environments.
 
 Usage:
     reranker = CrossEncoderReranker()
     top_chunks = reranker.rerank(query="...", results=store.search(..., top_k=20))
 """
 
+import math
 from typing import Any, Dict, List
 
 from loguru import logger
-from sentence_transformers import CrossEncoder
 
 
 class CrossEncoderReranker:
@@ -27,6 +29,7 @@ class CrossEncoderReranker:
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
         logger.info(f"Loading cross-encoder reranker: '{model_name}'")
+        from sentence_transformers import CrossEncoder
         self.model = CrossEncoder(model_name, max_length=512)
         logger.success("Cross-encoder reranker loaded.")
 
@@ -58,11 +61,8 @@ class CrossEncoderReranker:
         logger.debug(f"Re-ranking {len(pairs)} candidates with cross-encoder...")
         scores = self.model.predict(pairs, show_progress_bar=False)
 
-        import math
-
         # Attach rerank score to each result and sort descending
         for result, score in zip(results, scores):
-            # Map raw logits to [0, 1] range using sigmoid
             prob = 1 / (1 + math.exp(-float(score)))
             result["rerank_score"] = float(score)
             result["score"] = prob

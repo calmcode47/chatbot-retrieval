@@ -5,10 +5,10 @@ Retriever module that wraps vector search and cross-encoder re-ranking.
 import math
 from typing import Any, Dict, List, Optional
 
-import torch
 from loguru import logger
 from retrieval.vector_store import VectorStore
-from sentence_transformers import CrossEncoder
+# NOTE: CrossEncoder is imported inside RerankerService.__init__ (not here)
+# to avoid loading 500 MB of model weights at module import time.
 
 
 class RerankerService:
@@ -18,6 +18,8 @@ class RerankerService:
     """
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-base", device: str = None):
+        import torch
+        from sentence_transformers import CrossEncoder
         if device is None:
             device = "mps" if torch.backends.mps.is_available() else "cpu"
         self.device = device
