@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Navbar from "./components/Navbar";
-import ThreeBackground from "./components/ThreeBackground";
+import PlasmaMesh from "./components/PlasmaMesh";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
@@ -31,8 +31,8 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* 3D Constellation Background Layer */}
-      <ThreeBackground />
+      {/* 3D Plasma Background Layer */}
+      <PlasmaMesh />
 
       {/* Navigation Header */}
       <Navbar activePage={activePage} setActivePage={handleSetActivePage} />

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import KnowledgeVault from "../components/KnowledgeVault";
+import React, { useEffect } from "react";
+import ConstellationDome from "../components/ConstellationDome";
 
 const ARCH_LAYERS = [
   { title: 'Ingestion Layer',   tag: 'PyMuPDF · LangChain',       description: 'Documents are loaded by format-specific parsers, split into parent/child chunk hierarchies, embedded with BGE, and stored with HNSW indexing in ChromaDB.' },
@@ -25,7 +25,6 @@ const TECH_STACK = [
 ];
 
 export default function About() {
-  const [vaultHovered, setVaultHovered] = useState(false);
 
   useEffect(() => {
     // Scroll reveal triggers
@@ -85,14 +84,12 @@ export default function About() {
               </div>
             </div>
 
-            {/* Right Column — 3D Dome Gallery (KnowledgeVault) */}
+            {/* Right Column — 3D Constellation Dome */}
             <div 
               className="reveal reveal-delay-2"
-              onMouseEnter={() => setVaultHovered(true)}
-              onMouseLeave={() => setVaultHovered(false)}
               style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
             >
-              <KnowledgeVault isHovered={vaultHovered} />
+              <ConstellationDome />
             </div>
           </div>
         </div>

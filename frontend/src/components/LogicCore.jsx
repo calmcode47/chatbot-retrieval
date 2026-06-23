@@ -1,212 +1,123 @@
-// frontend/src/components/LogicCore.jsx
-
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+// Orbital parameters for 5 tetrahedra
+const TETRAHEDRA = [
+  { radius:1.55, orbitSpeed:0.013, selfSpeed:0.022, incline:0.00, phase:0.00,           size:0.44, color:0x7c3aed },
+  { radius:1.90, orbitSpeed:0.009, selfSpeed:0.018, incline:0.52, phase:Math.PI*0.40,  size:0.38, color:0xa78bfa },
+  { radius:1.70, orbitSpeed:0.016, selfSpeed:0.025, incline:0.88, phase:Math.PI*0.80,  size:0.41, color:0x0ea5e9 },
+  { radius:2.10, orbitSpeed:0.007, selfSpeed:0.015, incline:-0.60, phase:Math.PI*1.20, size:0.36, color:0xc4b5fd },
+  { radius:1.80, orbitSpeed:0.011, selfSpeed:0.020, incline:0.32, phase:Math.PI*1.65,  size:0.43, color:0x7c3aed },
+];
+
 export default function LogicCore({ isHovered = false }) {
-  const mountRef = useRef(null);
+  const mountRef   = useRef(null);
   const hoveredRef = useRef(isHovered);
+  useEffect(() => { hoveredRef.current = isHovered; }, [isHovered]);
 
   useEffect(() => {
-    hoveredRef.current = isHovered;
-  }, [isHovered]);
+    const el   = mountRef.current;
+    const SIZE = 480;
 
-  useEffect(() => {
-    const el = mountRef.current;
-    const SIZE = 440; // canvas dimensions
-
-    // ── Renderer ─────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(SIZE, SIZE);
     renderer.setClearColor(0x000000, 0);
     el.appendChild(renderer.domElement);
 
-    // ── Scene + Camera ───────────────────────────────────────────────
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-    camera.position.set(0, 0, 5.5);
+    const scene  = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
+    camera.position.set(0, 0, 7);
 
     // ── Lighting ─────────────────────────────────────────────────────
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const pointA = new THREE.PointLight(0x7c3aed, 3, 14);
+    pointA.position.set(3, 3, 4);
+    scene.add(pointA);
+    const pointB = new THREE.PointLight(0x0ea5e9, 1.5, 10);
+    pointB.position.set(-3, -2, 3);
+    scene.add(pointB);
 
-    // Dynamic point lights mapping to the split-spectrum theme
-    const violetLight = new THREE.PointLight(0x7c3aed, 3, 12);
-    violetLight.position.set(-2, 2, 2);
-    scene.add(violetLight);
-
-    const cyanLight = new THREE.PointLight(0x0ea5e9, 3, 12);
-    cyanLight.position.set(2, -2, 2);
-    scene.add(cyanLight);
-
-    // ── Central Light Source (Logic Core Center) ──────────────────────
-    const centerGroup = new THREE.Group();
-    
-    // Core glow center
-    const coreGeom = new THREE.SphereGeometry(0.18, 32, 32);
-    const coreMat = new THREE.MeshBasicMaterial({
-      color: 0x0ea5e9, // Cyan core
+    // ── Central glow sphere ──────────────────────────────────────────
+    const coreMat = new THREE.MeshStandardMaterial({
+      color:     0xc4b5fd,
+      emissive:  0x7c3aed,
+      emissiveIntensity: 1.2,
+      roughness: 0.1,
+      metalness: 0.9,
     });
-    const coreMesh = new THREE.Mesh(coreGeom, coreMat);
-    centerGroup.add(coreMesh);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.10, 16, 16), coreMat);
+    scene.add(core);
 
-    // Translucent outer shell for core pulse
-    const shellGeom = new THREE.SphereGeometry(0.35, 16, 16);
-    const shellMat = new THREE.MeshBasicMaterial({
-      color: 0x7c3aed,
-      transparent: true,
-      opacity: 0.18,
-      wireframe: true
-    });
-    const shellMesh = new THREE.Mesh(shellGeom, shellMat);
-    centerGroup.add(shellMesh);
+    // ── Tetrahedra + orbital rings ───────────────────────────────────
+    const tetMeshes   = [];
 
-    scene.add(centerGroup);
+    TETRAHEDRA.forEach((params) => {
+      // Orbital pivot group — rotating this moves tetrahedron along orbit
+      const pivot = new THREE.Group();
+      pivot.rotation.z = params.incline;
+      scene.add(pivot);
 
-    // ── Orbiting Tetrahedra (The 5 structural elements) ──────────────
-    const TETRA_COUNT = 5;
-    const tetraGroup = new THREE.Group();
-    const tetras = [];
-    const connectionLines = [];
-
-    // Distinct split-spectrum colors representing light dispersion
-    const colors = [
-      0x7c3aed, // Void Violet
-      0x8b5cf6, // Medium Violet
-      0xa78bfa, // Violet Soft
-      0x38bdf8, // Light Cyan
-      0x0ea5e9, // Pure Cyan
-    ];
-
-    const lineMat = new THREE.LineBasicMaterial({
-      color: 0x7c3aed,
-      transparent: true,
-      opacity: 0.12,
-    });
-
-    for (let i = 0; i < TETRA_COUNT; i++) {
-      const radius = 1.2 + (i * 0.28); // Staggered orbital distances
-      const size = 0.22 + (Math.random() * 0.08); // Unique sizes
-
-      const geom = new THREE.TetrahedronGeometry(size, 0);
-      const mat = new THREE.MeshStandardMaterial({
-        color: colors[i],
-        roughness: 0.05,
-        metalness: 0.9,
+      // Tetrahedron wireframe
+      const geo  = new THREE.TetrahedronGeometry(params.size, 0);
+      const mat  = new THREE.MeshStandardMaterial({
+        color:       params.color,
+        emissive:    params.color,
+        emissiveIntensity: 0.3,
+        wireframe:   true,
         transparent: true,
-        opacity: 0.65,
-        emissive: colors[i],
-        emissiveIntensity: 0.25,
-        flatShading: true,
+        opacity:     0.75,
       });
+      const tet = new THREE.Mesh(geo, mat);
+      tet.position.x = params.radius;
 
-      const tetraMesh = new THREE.Mesh(geom, mat);
+      // Thin orbital ring
+      const ringGeo = new THREE.TorusGeometry(params.radius, 0.006, 4, 80);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color:       params.color,
+        transparent: true,
+        opacity:     0.14,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      scene.add(ring);
+      ring.rotation.x = Math.PI / 2;
+      ring.rotation.z = params.incline;
 
-      // Create sharp wireframe outline for premium scientific aesthetic
-      const edges = new THREE.EdgesGeometry(geom);
-      const edgeLine = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: colors[i], transparent: true, opacity: 0.85 })
-      );
-      tetraMesh.add(edgeLine);
+      pivot.add(tet);
+      pivot.rotation.y = params.phase;
 
-      // Orbital axis and speed setup
-      // Stagger orbital axes to create interlocking, non-colliding shells
-      const angleOffset = (i * Math.PI * 2) / TETRA_COUNT;
-      const axis = new THREE.Vector3(
-        Math.sin(angleOffset * 1.5),
-        Math.cos(angleOffset),
-        Math.sin(angleOffset * 0.5)
-      ).normalize();
+      tetMeshes.push({ tet, pivot, params });
+    });
 
-      tetraMesh.userData = {
-        radius,
-        axis,
-        speed: 0.005 + (i * 0.002), // Staggered speed
-        rotSpeedX: 0.01 + Math.random() * 0.01,
-        rotSpeedY: 0.01 + Math.random() * 0.01,
-        angle: Math.random() * Math.PI * 2
-      };
+    // ── Animation ────────────────────────────────────────────────────
+    let animId, time = 0;
 
-      tetraGroup.add(tetraMesh);
-      tetras.push(tetraMesh);
-
-      // Connecting beam from center to tetrahedron
-      const lineGeom = new THREE.BufferGeometry();
-      const linePositions = new Float32Array(6); // 2 vertices × 3 coordinates
-      lineGeom.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-      const connLine = new THREE.Line(lineGeom, lineMat);
-      tetraGroup.add(connLine);
-      connectionLines.push({ line: connLine, positions: linePositions, target: tetraMesh });
-    }
-
-    scene.add(tetraGroup);
-
-    // ── Animation Loop ───────────────────────────────────────────────
-    let animId;
-    let time = 0;
+    // Self-rotation axes (pre-computed random for each tetrahedron)
+    const selfAxes = TETRAHEDRA.map(() =>
+      new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize()
+    );
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      time += 0.01;
+      time  += 0.008;
 
-      const speedMultiplier = hoveredRef.current ? 2.5 : 1.0;
+      const speed = hoveredRef.current ? 1.8 : 1.0;
 
-      // Pulse the central logic light core
-      const coreScale = 1.0 + Math.sin(time * 3.5) * 0.08;
-      coreMesh.scale.setScalar(coreScale);
-      shellMesh.scale.setScalar(1.0 + Math.cos(time * 2.0) * 0.05);
-      shellMesh.rotation.y += 0.004 * speedMultiplier;
-
-      // Animate tetrahedra orbits
-      tetras.forEach((tetra, i) => {
-        const u = tetra.userData;
-        u.angle += u.speed * speedMultiplier;
-
-        // Calculate 3D position based on axis and angle
-        const cosAngle = Math.cos(u.angle);
-        const sinAngle = Math.sin(u.angle);
-
-        // Orthogonal vectors to build the plane of orbit
-        const uVec = new THREE.Vector3().crossVectors(u.axis, new THREE.Vector3(0, 1, 0)).normalize();
-        if (uVec.lengthSq() < 0.1) {
-          uVec.crossVectors(u.axis, new THREE.Vector3(1, 0, 0)).normalize();
-        }
-        const vVec = new THREE.Vector3().crossVectors(u.axis, uVec).normalize();
-
-        const position = new THREE.Vector3()
-          .addScaledVector(uVec, cosAngle * u.radius)
-          .addScaledVector(vVec, sinAngle * u.radius);
-
-        tetra.position.copy(position);
-
-        // Spin the tetrahedron itself
-        tetra.rotation.x += u.rotSpeedX * speedMultiplier;
-        tetra.rotation.y += u.rotSpeedY * speedMultiplier;
+      // Orbit + self-rotate each tetrahedron
+      tetMeshes.forEach(({ tet, pivot, params }, i) => {
+        pivot.rotation.y += params.orbitSpeed * speed;
+        tet.rotateOnAxis(selfAxes[i], params.selfSpeed * speed);
       });
 
-      // Update structural connection filaments
-      connectionLines.forEach(({ line, positions, target }) => {
-        // Start filament at tetrahedron position
-        positions[0] = target.position.x;
-        positions[1] = target.position.y;
-        positions[2] = target.position.z;
-        // End filament at central point of light (0,0,0)
-        positions[3] = 0;
-        positions[4] = 0;
-        positions[5] = 0;
-        line.geometry.attributes.position.needsUpdate = true;
-      });
-
-      // Rotate group for additional parallax effect
-      tetraGroup.rotation.y = Math.sin(time * 0.25) * 0.12;
+      // Core pulse
+      const p = 1 + Math.sin(time * 3) * 0.12;
+      core.scale.setScalar(p);
+      coreMat.emissiveIntensity = 1.2 + Math.sin(time * 3) * 0.4;
 
       renderer.render(scene, camera);
     };
     animate();
 
-    // ── Cleanup ──────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animId);
       renderer.dispose();
@@ -218,10 +129,9 @@ export default function LogicCore({ isHovered = false }) {
     <div
       ref={mountRef}
       style={{
-        width: 440,
-        height: 440,
-        cursor: 'pointer',
-        filter: 'drop-shadow(0 0 45px rgba(124, 58, 237, 0.15))',
+        width:  480,
+        height: 480,
+        filter: 'drop-shadow(0 0 48px rgba(124,58,237,0.20))',
       }}
     />
   );
