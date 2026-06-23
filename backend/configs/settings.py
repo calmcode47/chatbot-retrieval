@@ -203,6 +203,9 @@ def get_config(config_path: str = None) -> AppConfig:
     if os.getenv("RERANK", "").strip().lower() == "false":
         raw.setdefault("retrieval", {})["rerank"] = False
 
+    if "SCORE_THRESHOLD" in os.environ:
+        raw.setdefault("retrieval", {})["score_threshold"] = float(os.environ["SCORE_THRESHOLD"])
+
     if "CHROMA_DB_DIR" in os.environ:
         raw.setdefault("vector_store", {})["persist_directory"] = os.environ[
             "CHROMA_DB_DIR"
