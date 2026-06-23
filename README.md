@@ -1,12 +1,15 @@
 # DocuMind — Private RAG Q&A System
 
-> Ask questions across your documents. Run entirely offline on Apple Silicon (or in the cloud with Groq). No data leaves your machine.
+> Ask questions across your documents. Run entirely offline on Apple Silicon, or deploy to the cloud with Groq in minutes.
 
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react)](https://react.dev)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-vector--store-orange)](https://www.trychroma.com)
 [![Ollama](https://img.shields.io/badge/Ollama-local--LLM-black)](https://ollama.com)
 [![Groq](https://img.shields.io/badge/Groq-cloud--LLM-f55036?logo=groq)](https://groq.com)
+[![Railway](https://img.shields.io/badge/Railway-deployed-6441a5?logo=railway)](https://railway.app)
+
+🔗 **Live Demo:** [https://documind-frontend-production-15cf.up.railway.app](https://documind-frontend-production-15cf.up.railway.app)
 
 ---
 
@@ -14,11 +17,12 @@
 
 | Feature | Detail |
 |---------|--------|
-| **Hybrid Search** | Semantic vector search (ChromaDB) + BM25 keyword search fused via RRF |
-| **Hierarchical Retrieval** | Parent/child chunks so the LLM gets full context around matches |
-| **Cross-Encoder Reranking** | `bge-reranker-base` re-scores retrieved chunks for precision |
+| **Hybrid Search** | Semantic vector search (ChromaDB) + BM25 keyword search fused via Reciprocal Rank Fusion |
+| **Hierarchical Retrieval** | Parent/child chunks so the LLM gets full context around each match |
+| **Cross-Encoder Reranking** | `bge-reranker-base` re-scores retrieved chunks for precision (disabled on Railway to save RAM) |
 | **Auto-Targeting** | Detects file-specific queries and applies metadata filters automatically |
 | **Multi-LLM Support** | Groq (cloud, free tier) → Ollama (local) → HuggingFace SLM fallback |
+| **Conversational Memory** | Server-side session store (SQLite) for multi-turn chat history |
 | **Live Status Indicator** | Navbar badge polls `/api/v1/health` every 15 s — real-time API status |
 | **Fully Dockerised** | One-command spin-up with `docker compose up --build` |
 
@@ -30,10 +34,10 @@
 |-------|-----------|
 | **Frontend** | React 18, Vite, Three.js, vanilla CSS |
 | **Backend** | FastAPI, LangChain, Pydantic v2 |
-| **Vector Store** | ChromaDB (cosine similarity) |
-| **Embeddings** | `BAAI/bge-base-en-v1.5` (sentence-transformers) |
-| **Reranker** | `BAAI/bge-reranker-base` |
-| **LLM (cloud)** | Groq — `llama3-8b-8192` (free API key) |
+| **Vector Store** | ChromaDB (cosine similarity, HNSW) |
+| **Embeddings** | `BAAI/bge-small-en-v1.5` on Railway · `BAAI/bge-base-en-v1.5` locally |
+| **Reranker** | `BAAI/bge-reranker-base` (local only) |
+| **LLM (cloud)** | Groq — `llama-3.1-8b-instant` (free API key) |
 | **LLM (local)** | Ollama — `llama3.2:3b` |
 | **LLM (fallback)** | `Qwen/Qwen2.5-0.5B-Instruct` via HuggingFace |
 
@@ -49,7 +53,7 @@
 │   ├── ingestion/       # Document loaders, chunkers, embedding cache
 │   ├── retrieval/       # Hybrid retriever, vector store wrapper, rerankers
 │   ├── generation/      # LLM init (Groq / Ollama / HuggingFace)
-│   ├── pipeline/        # Conversational RAG chain + memory
+│   ├── pipeline/        # Conversational RAG chain + context window manager
 │   ├── evaluation/      # Ragas runner + synthetic dataset generator
 │   ├── scripts/         # Ingestion helpers, ablation studies, benchmarks
 │   ├── tests/           # pytest suite
@@ -60,6 +64,7 @@
 │   ├── src/             # React SPA — Home, Dashboard, About + components
 │   ├── public/          # Static icons
 │   ├── Dockerfile       # Multi-stage build → Nginx serving
+│   ├── nginx.conf       # Reverse proxy config (50MB upload limit)
 │   ├── entrypoint.sh    # Injects BACKEND_URL into nginx.conf at runtime
 │   └── vite.config.js   # Dev proxy (Vite dev server only)
 │
@@ -72,7 +77,7 @@
 
 ## 🚀 Quick Start
 
-### Option A — Docker Compose (recommended)
+### Option A — Docker Compose (recommended for local)
 
 **Prerequisites:**
 - Docker Desktop running
@@ -83,7 +88,7 @@
 
 ```bash
 # Clone and run
-git clone https://github.com/your-username/chatbot-retrieval.git
+git clone https://github.com/calmcode47/chatbot-retrieval.git
 cd chatbot-retrieval
 docker compose up --build
 ```
@@ -94,7 +99,7 @@ docker compose up --build
 | Backend API | http://localhost:8000/api/v1/health |
 | API Docs | http://localhost:8000/docs |
 
-> The Nginx container reads `BACKEND_URL` from `docker-compose.yml` and injects it into the Nginx config at startup — no Vite dev server is involved in Docker mode.
+> The Nginx container reads `BACKEND_URL` from `docker-compose.yml` and injects it into the Nginx config at startup.
 
 ---
 
@@ -129,20 +134,13 @@ otherwise          →  use Qwen2.5-0.5B via HuggingFace (fallback, slow)
 ### Using Groq (free cloud API — recommended for Railway)
 
 1. Sign up at https://console.groq.com and create a free API key.
-2. Groq's free tier gives you **14,400 req/day** with `llama3-8b-8192`.
+2. Groq's free tier gives you **14,400 req/day**.
 
 **Local / Docker:**
 ```bash
-# .env (backend root) or docker-compose.yml environment section:
+# .env or docker-compose.yml environment section:
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GROQ_MODEL=llama3-8b-8192   # optional — this is the default
-```
-
-**Docker Compose override:**
-```yaml
-# docker-compose.yml → documind-api → environment
-- GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-- GROQ_MODEL=llama3-8b-8192
+GROQ_MODEL=llama-3.1-8b-instant   # recommended active model
 ```
 
 ### Using Ollama (local)
@@ -156,36 +154,37 @@ USE_OLLAMA=true
 
 ## ☁️ Railway Deployment
 
-### How to add the Groq API key on Railway
+### Backend service variables
 
-Because Railway is a cloud environment (no local GPU / Ollama), you **must** use Groq for the LLM. Here's the exact process:
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `GROQ_API_KEY` | `gsk_your_key_here` | Required for cloud LLM |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` | Active Groq model (not deprecated) |
+| `EMBEDDING_DEVICE` | `cpu` | No GPU on Railway |
+| `SCORE_THRESHOLD` | `0.0` | Disables score filtering (RRF scores can be negative) |
+| `OMP_NUM_THREADS` | `1` | Prevents CPU thrashing on shared Railway instances |
 
-1. **Open your Railway project** → select the **backend service** (documind-api).
-2. Go to the **Variables** tab (left sidebar).
-3. Click **+ New Variable** and add:
+Railway auto-detects the `RAILWAY_ENVIRONMENT` variable and switches to a memory-efficient profile automatically:
+- Uses `BAAI/bge-small-en-v1.5` (~130 MB) instead of `bge-base-en-v1.5` (~440 MB)
+- Disables the cross-encoder reranker (~500 MB saved)
 
-   | Variable | Value |
-   |----------|-------|
-   | `GROQ_API_KEY` | `gsk_your_key_here` |
-   | `GROQ_MODEL` | `llama3-8b-8192` |
-   | `EMBEDDING_DEVICE` | `cpu` |
+Watch the **Logs** tab — you should see:
+```
+Railway environment detected — switching to memory-efficient profile
+Using Groq LLM: model=llama-3.1-8b-instant
+DocuMind API ready. All components initialized.
+```
 
-4. Railway auto-redeploys on variable save. Watch the **Logs** tab — you should see:
-   ```
-   Using Groq LLM: model=llama3-8b-8192
-   ```
-5. The **API ONLINE** badge in the top-right of the site will turn green once the backend is healthy.
+> ⚠️ Do NOT set `USE_OLLAMA=true` on Railway — there is no Ollama server available there.
 
-> **Tip:** Do NOT set `USE_OLLAMA=true` on Railway — there is no Ollama server available there.
+### Frontend service variables
 
-### Frontend env on Railway
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `BACKEND_URL` | `https://your-backend.up.railway.app` | **Must be the public HTTPS URL** |
+| `PORT` | `8501` | Port Nginx listens on |
 
-The frontend service needs `BACKEND_URL` pointing to the backend Railway URL:
-
-| Variable | Value |
-|----------|-------|
-| `BACKEND_URL` | `https://your-backend-service.up.railway.app` |
-| `PORT` | `8501` |
+> ⚠️ Use the **public HTTPS URL** (not `http://documind:8080`). Railway's internal DNS can cause Nginx to cache stale IPs after backend redeploys, leading to 502/504 errors. The public URL routes through Railway's stable edge load balancer and avoids this problem.
 
 ---
 
@@ -194,7 +193,7 @@ The frontend service needs `BACKEND_URL` pointing to the backend Railway URL:
 The Navbar displays a real-time API status badge:
 
 | State | Color | Meaning |
-|-------|-------|---------|
+|-------|-------|---------| 
 | 🟡 **CONNECTING…** | Amber | Polling on startup |
 | 🟢 **API ONLINE** | Green (pulsing) | Backend `/health` returned 200 |
 | 🔴 **API OFFLINE** | Red | Backend unreachable or returned error |
@@ -207,12 +206,11 @@ The badge polls `/api/v1/health` every **15 seconds** automatically.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/v1/health` | Service health + vector count |
-| `GET` | `/api/v1/documents` | List all ingested documents |
-| `POST` | `/api/v1/documents/upload` | Upload & ingest a file |
-| `DELETE` | `/api/v1/documents/{id}` | Remove a document |
-| `POST` | `/api/v1/chat` | Send a question, get a streamed answer |
-| `DELETE` | `/api/v1/chat/history` | Clear conversation memory |
+| `GET`  | `/api/v1/health` | Service health + vector store count |
+| `GET`  | `/api/v1/documents` | List all ingested documents |
+| `POST` | `/api/v1/ingest` | Upload & ingest a file (PDF, TXT, MD — up to 50 MB) |
+| `DELETE` | `/api/v1/documents/{filename}` | Remove a document and its chunks |
+| `POST` | `/api/v1/chat` | Send a question, get a RAG answer with sources |
 
 ---
 
@@ -233,6 +231,14 @@ Target metrics:
 | Answer Relevancy | ≥ 0.80 |
 | Context Precision | ≥ 0.70 |
 | Context Recall | ≥ 0.70 |
+
+---
+
+## ⚠️ Known Limitations
+
+- **No persistence across Railway redeploys** — ChromaDB data is ephemeral on Railway's free tier. You'll need to re-upload documents after each backend restart. Add a Railway Volume for persistence.
+- **Cold start latency** — The embedding model (`bge-small`) is loaded lazily on the first upload/query (~4 s on Railway free tier).
+- **Groq rate limits** — Free tier: 14,400 req/day, 30 req/min. Use `llama-3.1-8b-instant` for best throughput.
 
 ---
 
