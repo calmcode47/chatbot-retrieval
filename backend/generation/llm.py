@@ -9,9 +9,85 @@ Priority:
 
 import os
 from loguru import logger
+from langchain_core.language_models.chat_models import BaseChatModel
 
 # Singleton cache for local Hugging Face SLM to avoid reloading model weights
 _local_slm_instance = None
+
+
+class LazyChatHuggingFace(BaseChatModel):
+    """
+    Lazy loading wrapper for HuggingFace pipeline.
+    Prevents loading the heavy SLM weights at server startup, saving RAM and boot time.
+    """
+    model_id: str
+    temperature: float
+    
+    # Store internal initialized model
+    _actual_model = None
+
+    def __init__(self, model_id: str, temperature: float, **kwargs):
+        super().__init__(model_id=model_id, temperature=temperature, **kwargs)
+        # Avoid setting attributes that LangChain validation complains about
+        object.__setattr__(self, "_actual_model", None)
+
+    def _init_model(self):
+        from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+        from langchain_huggingface import ChatHuggingFace
+        from langchain_community.llms import HuggingFacePipeline
+        import torch
+
+        logger.info(f"Lazy loading SLM model: {self.model_id}...")
+        
+        # Auto-detect device (cuda, mps, cpu)
+        device = "cpu"
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+
+        logger.info(f"Loading SLM on device: {device}")
+
+        tokenizer = AutoTokenizer.from_pretrained(self.model_id)
+        # Use float16 on GPU, float32 on CPU
+        torch_dtype = torch.float16 if device in ["cuda", "mps"] else torch.float32
+        
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_id,
+            torch_dtype=torch_dtype,
+            device_map="auto" if device in ["cuda", "mps"] else None,
+        )
+        if device == "cpu":
+            model = model.to("cpu")
+
+        pipe = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            max_new_tokens=512,
+            temperature=self.temperature,
+            do_sample=self.temperature > 0.0,
+        )
+        
+        hf_llm = HuggingFacePipeline(pipeline=pipe)
+        logger.success("Self-contained local SLM loaded successfully on demand.")
+        return ChatHuggingFace(llm=hf_llm)
+
+    def _get_model(self):
+        if self._actual_model is None:
+            # Thread-safe assignment using object.__setattr__ to bypass Pydantic model validation
+            object.__setattr__(self, "_actual_model", self._init_model())
+        return self._actual_model
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        return self._get_model()._generate(messages, stop, run_manager, **kwargs)
+
+    def _stream(self, messages, stop=None, run_manager=None, **kwargs):
+        yield from self._get_model()._stream(messages, stop, run_manager, **kwargs)
+
+    @property
+    def _llm_type(self) -> str:
+        return "lazy-chat-huggingface"
 
 
 def get_llm(
@@ -71,11 +147,6 @@ def get_llm(
     else:
         # Default: Use self-contained local SLM running inside Python via HuggingFace
         if _local_slm_instance is None:
-            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-            from langchain_huggingface import ChatHuggingFace
-            from langchain_community.llms import HuggingFacePipeline
-            import torch
-
             # If model parameter is an Ollama model (has colon) or not a HF repo ID, ignore it
             if model and ":" not in model and "/" in model:
                 model_id = model
@@ -85,43 +156,10 @@ def get_llm(
             # If fine-tuned model path exists, prioritize it
             if os.path.exists("./models/fine-tuned-slm"):
                 model_id = "./models/fine-tuned-slm"
-                logger.info(f"Loading custom fine-tuned SLM from {model_id}...")
-            else:
-                logger.info(f"Loading self-contained local SLM: {model_id}...")
-
-            # Auto-detect device (cuda, mps, cpu)
-            device = "cpu"
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif torch.backends.mps.is_available():
-                device = "mps"
-
-            logger.info(f"Loading SLM on device: {device}")
-
-            tokenizer = AutoTokenizer.from_pretrained(model_id)
-            # Use float16 on GPU, float32 on CPU
-            torch_dtype = torch.float16 if device in ["cuda", "mps"] else torch.float32
+                logger.info(f"Using fine-tuned SLM path: {model_id}")
             
-            model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                torch_dtype=torch_dtype,
-                device_map="auto" if device in ["cuda", "mps"] else None,
-            )
-            if device == "cpu":
-                model = model.to("cpu")
-
-            pipe = pipeline(
-                "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                max_new_tokens=512,
-                temperature=temperature,
-                do_sample=temperature > 0.0,
-            )
-            
-            hf_llm = HuggingFacePipeline(pipeline=pipe)
-            _local_slm_instance = ChatHuggingFace(llm=hf_llm)
-            logger.success("Self-contained local SLM loaded successfully.")
+            _local_slm_instance = LazyChatHuggingFace(model_id=model_id, temperature=temperature)
+            logger.info(f"Initialized LazyChatHuggingFace wrapper for {model_id}.")
 
         return _local_slm_instance
 
