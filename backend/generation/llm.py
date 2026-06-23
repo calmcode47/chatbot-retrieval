@@ -111,13 +111,24 @@ def get_llm(
     if groq_api_key:
         from langchain_groq import ChatGroq
 
-        groq_model = model or os.getenv("GROQ_MODEL", "llama3-8b-8192")
-        logger.info(f"Using Groq LLM: model={groq_model}")
+        # Respect GROQ_MODEL environment variable if explicitly set
+        groq_model = os.getenv("GROQ_MODEL", "").strip()
+        if not groq_model:
+            # Map Ollama names to valid Groq names if needed
+            if model and ":" not in model:
+                groq_model = model
+            elif model and (model.startswith("llama3.2") or model.startswith("llama-3.2")):
+                groq_model = "llama-3.2-3b-preview"
+            else:
+                groq_model = "llama-3.2-3b-preview"
+
+        logger.info(f"Using Groq LLM: model={groq_model} (requested={model})")
         return ChatGroq(
             api_key=groq_api_key,
             model=groq_model,
             temperature=temperature,
         )
+
 
     elif use_ollama:
         from langchain_ollama import ChatOllama
