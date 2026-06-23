@@ -27,7 +27,11 @@ class ContextBuilder:
             (context_string, used_sources)
         """
         # Filter out low-relevance chunks
-        filtered = [r for r in results if r["score"] >= score_threshold]
+        if score_threshold <= 0.0:
+            filtered = results
+        else:
+            filtered = [r for r in results if r["score"] >= score_threshold]
+
 
         if not filtered:
             return "No relevant context found.", []
