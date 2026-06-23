@@ -1,18 +1,19 @@
 # DocuMind: Local RAG Q&A System
-## Project Status Report — June 21, 2026
+## Project Status Report — June 23, 2026
 
-DocuMind is a private, local Retrieval-Augmented Generation (RAG) system designed to perform secure document question-answering. It uses Apple Silicon GPU-acceleration (MPS) for embedding generation, ChromaDB for persistent vector search, and Ollama to host LLMs locally.
+DocuMind is a private, local Retrieval-Augmented Generation (RAG) system designed to perform secure document question-answering. It is designed to run completely offline on local machines (leveraging Apple Silicon GPU acceleration) or containerized in the cloud.
 
 ---
 
 ## 1. Executive Summary
-As of today, the system has progressed to **Phase 16**, introducing backend-frontend code partitioning, Docker environment updates, and an optimized RAG query matching mechanism for target documents. We have successfully implemented:
-* Codebase Partitioning: Restructured the workspace to separate frontend code (React + Vite) under a frontend directory and python processing pipelines (FastAPI, ingestion, retrieval, database, and configurations) under a backend directory.
-* Docker Environment Reconfiguration: Realigned build contexts, volume mounts, and Dockerfiles to support the decoupled structure without breaking container operations.
-* Optimized Target Document Querying: Configured a normalization layer that strips file extensions, spaces, and punctuation from both queries and registry source lists. When a specific target file is requested, the system automatically isolates search to the file's metadata and dynamically overrides similarity score thresholds.
-* Unit Test Reconciliation: Re-established path mappings and PYTHONPATH environments so that all unit tests compile and run successfully inside the new backend layout.
 
-All processes remain container-ready and verified to run successfully.
+As of today, the system has progressed to support **fully self-contained, offline model execution**, removing external API/Ollama dependencies in production. We have successfully implemented:
+
+1. **Self-Contained Local SLM**: Integrated a local Small Language Model (`Qwen/Qwen2.5-0.5B-Instruct`) that runs directly inside the Python backend process.
+2. **Lazy Loading Wrapper Optimization**: Designed a custom `LazyChatHuggingFace` model wrapper that defers model loading until the first query is received, preventing startup memory crashes (OOM) on standard cloud servers.
+3. **Cross-Platform Device Fallback**: Added automatic CPU/CUDA fallback when Apple MPS is requested but unavailable (e.g. on Linux cloud servers).
+4. **Terminal Fine-Tuning Pipeline**: Provided a PyTorch training loop (`train_slm.py`) and standard chat formatted dataset (`train_dataset.json`) to train/fine-tune the local model directly in the terminal.
+5. **Railway Cloud Deployment**: Fully containerized and deployed both services inside a single unified Railway project, resolving port expansions and startup connection issues.
 
 ---
 
@@ -44,11 +45,14 @@ graph TD
         PR[Parent Retriever: Fetch parent text by child ID]
         CR[Cross-Encoder Reranker: BGE-Reranker-Base]
         CB[Context Builder]
-        OLL[Ollama on MacOS Host: Llama-3.2-3b]
+        
+        subgraph Local Python Inference
+            SLM[LazyChatHuggingFace: Qwen2.5-0.5B]
+        end
     end
 
     User -->|Upload / Chat| UI
-    UI -->|REST API Calls (VITE_API_BASE_URL)| API
+    UI -->|REST API Calls| API
     API -->|Raw Doc| LD
     LD --> Hierarchical
     PCK --> CCK --> EMB -->|Vectors & Meta| VS
@@ -61,8 +65,8 @@ graph TD
     RRF -->|Ranked Child Chunks| PR
     PR -->|Fetch Parent Context| CR
     CR -->|Re-scored Parent Context| CB
-    CB -->|Context String| OLL
-    OLL -->|Factual Answer| API
+    CB -->|Context String| SLM
+    SLM -->|Factual Answer| API
     API -->|Response + Sources + Telemetry| UI
 ```
 
@@ -75,51 +79,39 @@ graph TD
 | **Settings & Config** | [backend/configs/settings.py](file:///Users/mayank/chatbot-retrieval/backend/configs/settings.py), `backend/configs/config.yaml` | **Completed** | Typed configuration loader using Pydantic. Exposes configuration properties (chunk sizes, LLM names, hosts) to all components. |
 | **Embeddings** | [backend/ingestion/embedder.py](file:///Users/mayank/chatbot-retrieval/backend/ingestion/embedder.py) | **Completed** | BAAI/bge-base-en-v1.5 wrapper with automatic GPU/CPU fallback mechanism optimized for container deployment. |
 | **Vector Store** | [backend/retrieval/vector_store.py](file:///Users/mayank/chatbot-retrieval/backend/retrieval/vector_store.py) | **Completed** | Wrapped ChromaDB client persisting data to `backend/data/chroma_db` using cosine distance. |
-| **Hybrid Retrieval** | [backend/retrieval/hybrid_retriever.py](file:///Users/mayank/chatbot-retrieval/backend/retrieval/hybrid_retriever.py) | **Completed** | Combines sparse (BM25Okapi) and dense (ChromaDB) retrieval using Reciprocal Rank Fusion (RRF, k=60) for improved keyword matching. Filters BM25 results by file reference when targeted. |
-| **Parent-Document Retrieval**| [backend/ingestion/parent_chunker.py](file:///Users/mayank/chatbot-retrieval/backend/ingestion/parent_chunker.py), [backend/retrieval/parent_retriever.py](file:///Users/mayank/chatbot-retrieval/backend/retrieval/parent_retriever.py) | **Completed** | Splits documents into parent-child hierarchies. Retrieval matches the child chunks but returns the parent context to the LLM. |
-| **Cross-Encoder Reranker** | [backend/retrieval/reranker.py](file:///Users/mayank/chatbot-retrieval/backend/retrieval/reranker.py) | **Completed** | Integrates BAAI/bge-reranker-base to re-score candidate chunks for increased context accuracy. |
-| **Orchestrator** | [backend/pipeline/conversational_chain.py](file:///Users/mayank/chatbot-retrieval/backend/pipeline/conversational_chain.py) | **Completed** | Stateful multi-turn conversation memory, automatically condensing queries. Auto-detects filename targets in queries using normalized name checks and overrides retrieval filters and thresholds. |
-| **FastAPI Backend** | [backend/api/main.py](file:///Users/mayank/chatbot-retrieval/backend/api/main.py), [backend/Dockerfile](file:///Users/mayank/chatbot-retrieval/backend/Dockerfile) | **Completed** | REST endpoints for chat, delete, document ingestion, and health checks. Built as a containerized Python service listening on port 8000. |
-| **React Frontend UI** | [frontend/Dockerfile](file:///Users/mayank/chatbot-retrieval/frontend/Dockerfile), [frontend/src/App.jsx](file:///Users/mayank/chatbot-retrieval/frontend/src/App.jsx) | **Completed** | Premium React SPA built with Vite and served on port 8501. Incorporates interactive 3D Three.js backgrounds, structured layout (Home, About, Dashboard), and complete telemetry/citations rendering. |
-| **Embedding Cache** | [backend/ingestion/embedding_cache.py](file:///Users/mayank/chatbot-retrieval/backend/ingestion/embedding_cache.py) | **Completed** | Disk-based persistent embedding cache using diskcache to avoid redundant embedding generation and speed up ingestion. |
-| **Document Registry** | [backend/ingestion/document_registry.py](file:///Users/mayank/chatbot-retrieval/backend/ingestion/document_registry.py) | **Completed** | Persistent JSON-based registry mapping indexed documents to rich metadata (size, file type, upload time, chunk count). |
-| **Ablation Studies** | [backend/scripts/ablation_study.py](file:///Users/mayank/chatbot-retrieval/backend/scripts/ablation_study.py) | **Completed** | Automated parameter sweep framework evaluating retrieval recall and chunking optimization via Ragas. |
-| **RAGAS Evaluation** | [backend/evaluation/ragas_eval.py](file:///Users/mayank/chatbot-retrieval/backend/evaluation/ragas_eval.py) | **Completed** | Uses llama3.2:3b for pipeline generation and mistral:7b as LLM judge with 180s timeout, score validation, and dataset size guard. |
+| **Hybrid Retrieval** | [backend/retrieval/hybrid_retriever.py](file:///Users/mayank/chatbot-retrieval/backend/retrieval/hybrid_retriever.py) | **Completed** | Combines sparse (BM25Okapi) and dense (ChromaDB) retrieval using Reciprocal Rank Fusion (RRF, k=60) for improved keyword matching. |
+| **Parent-Document Retrieval**| [backend/ingestion/parent_chunker.py](file:///Users/mayank/chatbot-retrieval/backend/ingestion/parent_chunker.py) | **Completed** | Splits documents into parent-child hierarchies. Retrieval matches the child chunks but returns the parent context to the LLM. |
+| **LLM Interface** | [backend/generation/llm.py](file:///Users/mayank/chatbot-retrieval/backend/generation/llm.py) | **Completed** | Auto-selects Groq (cloud) if key is set, falls back to local HuggingFace SLM via `LazyChatHuggingFace` wrapper to run completely offline. |
+| **FastAPI Backend** | [backend/api/main.py](file:///Users/mayank/chatbot-retrieval/backend/api/main.py) | **Completed** | REST endpoints for chat, delete, document ingestion, and health checks. Bypasses legacy Ollama warmups unless configured. |
+| **Fine-Tuning Script** | [backend/scripts/train_slm.py](file:///Users/mayank/chatbot-retrieval/backend/scripts/train_slm.py) | **Completed** | PyTorch training loop executing on MPS/CUDA/CPU to fine-tune the local SLM on custom instruction datasets. |
+| **Training Dataset** | [backend/data/train_dataset.json](file:///Users/mayank/chatbot-retrieval/backend/data/train_dataset.json) | **Completed** | ChatML formatted Q&A dataset containing base knowledge of the DocuMind RAG pipeline. |
 
 ---
 
 ## 4. Verification & Testing
 
-### A. Container Deployments
-Both documind-api and documind-ui build and maintain healthy statuses inside their respective workspaces when run under docker compose:
-```bash
-$ docker compose ps
-NAME           IMAGE                            STATUS                   PORTS
-documind-api   chatbot-retrieval-documind-api   Up 2 minutes (healthy)   0.0.0.0:8000->8000/tcp
-documind-ui    chatbot-retrieval-documind-ui    Up 2 minutes             0.0.0.0:8501->8501/tcp
-```
+### A. Railway Cloud Deployment
+Both services build and deploy successfully under a unified project structure:
+* **Backend API**: [https://documind-production-cd0f.up.railway.app](https://documind-production-cd0f.up.railway.app) (Status: **Online** / healthy `/api/v1/health` response).
+* **Frontend Web App**: [https://documind-frontend-production-15cf.up.railway.app](https://documind-frontend-production-15cf.up.railway.app) (Status: **Online**).
 
-### B. Unit & Integration Testing
-All unit tests pass successfully under the updated paths:
+### B. Local Training Pipeline
+The training script was verified and successfully completed locally on your Mac's MPS GPU, achieving loss convergence and saving custom checkpoints:
 ```bash
-backend/tests/test_retrieval.py::test_embedding_dimension PASSED                 [ 14%]
-backend/tests/test_retrieval.py::test_embedding_normalized PASSED                [ 28%]
-backend/tests/test_retrieval.py::test_vector_store_add_and_search PASSED         [ 42%]
-backend/tests/test_retrieval.py::test_context_builder PASSED                     [ 57%]
-backend/tests/test_retrieval.py::test_context_builder_empty PASSED               [ 71%]
-backend/tests/test_retrieval.py::test_reranker PASSED                            [ 85%]
-backend/tests/test_retrieval.py::test_conversational_chain_condense PASSED       [100%]
+2026-06-23 16:11:00.784 | INFO     | __main__:train:100 - Starting training loop...
+2026-06-23 16:12:49.736 | INFO     | __main__:train:124 - Epoch 1/3 Completed | Average Loss: 2.9650
+2026-06-23 16:19:51.494 | INFO     | __main__:train:124 - Epoch 2/3 Completed | Average Loss: 0.5898
+2026-06-23 16:25:15.713 | INFO     | __main__:train:124 - Epoch 3/3 Completed | Average Loss: 0.1492
+2026-06-23 16:25:15.742 | INFO     | __main__:train:127 - Saving fine-tuned model checkpoint to: ./models/fine-tuned-slm...
+2026-06-23 16:25:19.843 | SUCCESS  | __main__:train:131 - Training complete! Fine-tuned model saved successfully.
 ```
-
-### C. Automated RAGAS Evaluation
-By upgrading the LLM judge model to mistral:7b and setting the Ollama timeout to 180 seconds, evaluation queries execute reliably without timeout errors, yielding precise scores across all Ragas metrics (Faithfulness, Answer Relevancy, Context Precision, and Context Recall).
 
 ---
 
-## 5. Roadmap & Future Improvements
-1. Ablation Studies:
-   * Utilize the configuration settings framework to execute evaluations across varying chunk sizes and reranker top-K values to optimize retrieval recall.
-2. Dynamic Context Windows:
-   * Programmatically adjust retriever limits based on length checks of retrieved contexts to prevent context window overflow on local LLMs.
-3. Advanced Session Memory:
-   * Extend conversational chain state to support database-backed message stores and user session management.
+## 5. Next Steps & Configurations
+* **Run Completely Locally**:
+  * Start FastAPI: `cd backend && uvicorn api.main:app --port 8000 --reload`
+  * Start React: `cd frontend && npm run dev`
+* **Train Custom Data**:
+  * Edit [train_dataset.json](file:///Users/mayank/chatbot-retrieval/backend/data/train_dataset.json) to add custom instruction samples.
+  * Run training: `cd backend && python3 scripts/train_slm.py`
