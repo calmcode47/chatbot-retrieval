@@ -1,15 +1,16 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import KnowledgeVault from "../components/KnowledgeVault";
 
 const ARCH_LAYERS = [
   { title: 'Ingestion Layer',   tag: 'PyMuPDF · LangChain',       description: 'Documents are loaded by format-specific parsers, split into parent/child chunk hierarchies, embedded with BGE, and stored with HNSW indexing in ChromaDB.' },
   { title: 'Retrieval Layer',   tag: 'BM25 + Dense + RRF',         description: 'Hybrid sparse+dense retrieval with Reciprocal Rank Fusion merges keyword and semantic signals. Child chunks are retrieved; parent context is returned to the LLM.' },
   { title: 'Reranking Layer',   tag: 'BGE-Reranker-Base',          description: 'A cross-encoder model jointly scores query+chunk pairs, reordering candidates by precision before context injection.' },
-  { title: 'Generation Layer',  tag: 'Ollama · llama3.2:3b',       description: 'Context-window-fit prompt with strict grounding instructions passed to a quantized local LLM. Session memory persisted in SQLite.' },
+  { title: 'Generation Layer',  tag: 'Local SLM · Qwen2.5-0.5B',   description: 'Context-window-fit prompt with strict grounding instructions passed to a quantized local model running in-process.' },
   { title: 'Evaluation Layer',  tag: 'RAGAS · mistral:7b judge',   description: 'Automated quality measurement across faithfulness, relevancy, context precision, and recall. Parameter sweeps via ablation study framework.' },
 ];
 
 const TECH_STACK = [
-  { category: 'LLM',        name: 'Ollama',              detail: 'llama3.2:3b · mistral:7b' },
+  { category: 'LLM',        name: 'Hugging Face / Ollama',detail: 'Qwen2.5-0.5B · llama3.2:3b' },
   { category: 'Embedding',  name: 'sentence-transformers',detail: 'BAAI/bge-base-en-v1.5' },
   { category: 'Reranker',   name: 'Cross-Encoder',       detail: 'BAAI/bge-reranker-base' },
   { category: 'Vector DB',  name: 'ChromaDB',            detail: 'Cosine · HNSW · Persistent' },
@@ -19,11 +20,13 @@ const TECH_STACK = [
   { category: 'Evaluation', name: 'RAGAS',               detail: 'Faithfulness · Recall · Precision' },
   { category: 'API',        name: 'FastAPI',             detail: 'Python 3.11 · Pydantic v2' },
   { category: 'Frontend',   name: 'React 18 + Vite',     detail: 'Three.js · Lucide · DM Mono' },
-  { category: 'Deploy',     name: 'Docker Compose',      detail: 'arm64 · Python + Node containers' },
-  { category: 'Platform',   name: 'Apple Silicon M4',    detail: 'MPS acceleration · 16GB unified' },
+  { category: 'Deploy',     name: 'Docker / Railway',    detail: 'Lightweight Linux containerization' },
+  { category: 'Platform',   name: 'Local Hardware / CPU',detail: 'Cross-platform PyTorch acceleration' },
 ];
 
 export default function About() {
+  const [vaultHovered, setVaultHovered] = useState(false);
+
   useEffect(() => {
     // Scroll reveal triggers
     const reveals = document.querySelectorAll(".reveal");
@@ -44,48 +47,59 @@ export default function About() {
 
   return (
     <div className="about-page-container" style={{ padding: 0 }}>
-      {/* Section A — Project Identity */}
-      <section className="section" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-        <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <p className="eyebrow reveal" style={{ width: '100%' }}>// About DocuMind</p>
+      {/* Section A — Above-Fold Hero */}
+      <section className="section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <div className="container">
+          <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 'var(--sp-2xl)', alignItems: 'center' }}>
+            {/* Left Column — Text & Stats */}
+            <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <p className="eyebrow reveal" style={{ width: '100%' }}>// About DocuMind</p>
 
-          <blockquote className="display-xl reveal reveal-delay-1" style={{
-            maxWidth:   1000,
-            marginTop:  'var(--sp-xl)',
-            lineHeight: 1.0,
-          }}>
-            AN AI SYSTEM THAT KNOWS
-            <span style={{ color: 'var(--amber)' }}> ONLY WHAT YOU TEACH IT</span>
-            — AND KEEPS IT
-            <span style={{ color: 'var(--amber)' }}> ENTIRELY TO ITSELF.</span>
-          </blockquote>
+              <blockquote className="display-lg reveal reveal-delay-1" style={{
+                marginTop: 'var(--sp-xl)',
+                lineHeight: 1.05,
+              }}>
+                AN AI SYSTEM THAT KNOWS<br />
+                <span style={{ color: 'var(--violet)' }}> ONLY WHAT YOU TEACH IT</span><br />
+                — AND KEEPS IT<br />
+                <span style={{ color: 'var(--cyan)' }}> ENTIRELY TO ITSELF.</span>
+              </blockquote>
 
-          <div className="reveal reveal-delay-2" style={{
-            display:      'flex',
-            gap:          'var(--sp-2xl)',
-            marginTop:    'var(--sp-3xl)',
-            flexWrap:     'wrap',
-            justifyContent: 'center',
-            width: '100%',
-          }}>
-            {[
-              ['VERSION',   'v1.7.0'],
-              ['BUILT',     'June 2026'],
-              ['PLATFORM',  'macOS M4 · Apple Silicon'],
-              ['INFERENCE', 'Ollama · Llama 3.2 3B'],
-              ['EMBEDDING', 'BAAI/bge-base-en-v1.5'],
-            ].map(([k, v]) => (
-              <div key={k} style={{ minWidth: '180px' }}>
-                <p className="mono-base" style={{ color: 'var(--text-muted)' }}>{k}</p>
-                <p className="display-md" style={{ color: 'var(--amber)', marginTop: 'var(--sp-sm)', fontSize: '2rem' }}>{v}</p>
+              <div className="reveal reveal-delay-2" style={{
+                display: 'flex',
+                gap: 'var(--sp-md)',
+                marginTop: 'var(--sp-2xl)',
+                flexWrap: 'wrap',
+              }}>
+                {[
+                  ['VERSION', 'v1.8.0'],
+                  ['BUILT', 'June 2026'],
+                  ['INFERENCE', 'Qwen2.5-0.5B'],
+                  ['EMBEDDING', 'bge-base-en-v1.5'],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ minWidth: '130px', background: 'var(--surface)', border: '1px solid var(--border-medium)', borderRadius: 'var(--r-md)', padding: '12px 20px' }}>
+                    <p className="mono-sm" style={{ color: 'var(--text-muted)' }}>{k}</p>
+                    <p className="heading-ui" style={{ color: 'var(--violet-soft)', marginTop: '4px' }}>{v}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Right Column — 3D Dome Gallery (KnowledgeVault) */}
+            <div 
+              className="reveal reveal-delay-2"
+              onMouseEnter={() => setVaultHovered(true)}
+              onMouseLeave={() => setVaultHovered(false)}
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <KnowledgeVault isHovered={vaultHovered} />
+            </div>
           </div>
         </div>
       </section>
 
       {/* Section B — Architecture Breakdown */}
-      <section className="section" style={{ background: 'rgba(245,158,11,0.015)' }}>
+      <section className="section" style={{ background: 'rgba(124,58,237,0.015)' }}>
         <div className="container">
           <p className="eyebrow reveal">// System Architecture</p>
           <h2 className="display-md reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)', marginBottom: 'var(--sp-2xl)' }}>
@@ -102,7 +116,7 @@ export default function About() {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <p className="heading-ui" style={{ fontSize: '0.95rem' }}>{layer.title}</p>
-                    <span className="mono-sm" style={{ color: 'var(--amber)' }}>{layer.tag}</span>
+                    <span className="mono-sm" style={{ color: 'var(--cyan)' }}>{layer.tag}</span>
                   </div>
                   <p className="body-base" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-sm)', fontSize: '0.875rem' }}>
                     {layer.description}
@@ -111,9 +125,9 @@ export default function About() {
               ))}
             </div>
 
-            {/* Right — ASCII flow diagram in axiom-card */}
-            <div className="axiom-card reveal reveal-delay-2" style={{ overflowX: 'auto' }}>
-              <p className="mono-sm" style={{ color: 'var(--amber)', marginBottom: 'var(--sp-md)' }}>
+            {/* Right — ASCII flow diagram in prism-card */}
+            <div className="prism-card reveal reveal-delay-2" style={{ overflowX: 'auto' }}>
+              <p className="mono-sm" style={{ color: 'var(--cyan)', marginBottom: 'var(--sp-md)' }}>
                 // pipeline flow
               </p>
               <pre className="mono-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.9, whiteSpace: 'pre' }}>
@@ -125,23 +139,31 @@ export default function About() {
       ▼
 [Parent Chunker]  512 tok
       │
-[Child Chunker]   128 tok
-      │
-[BGE Embedder]    768-dim
+      ├────── [Child Chunker] 128 tok ── [BGE Embedder]
+      │                                       │
+      ▼                                       ▼
+[Parent Text Store]                      [ChromaDB]
+      │                                       │
+      │                                 [Dense Search]
+      │                                       │
+      │                                 [BM25 Search]
+      │                                       │
+      │                                 [RRF Fusion]
+      │                                       │
+      ▼                                       ▼
+[Fetch Parent Text] ◄────── [Top Child IDs] ──┘
       │
       ▼
-[ChromaDB]  ──  [BM25 Index]
-      │                │
-      └────── RRF ─────┘
-                │
-      [Cross-Encoder Reranker]
-                │
-      [Context Window Fit]
-                │
-      [Ollama: llama3.2:3b]
-                │
-                ▼
-         [Answer + Sources]`}
+[BGE Cross-Encoder Reranker]
+      │
+      ▼
+[Prompt Grounding]
+      │
+      ▼
+[Local SLM: Qwen2.5-0.5B-Instruct]
+      │
+      ▼
+[Answer + Citations]`}
               </pre>
             </div>
           </div>
@@ -157,8 +179,8 @@ export default function About() {
           </h2>
           <div className="tech-grid">
             {TECH_STACK.map((tech, i) => (
-              <div key={tech.name} className={`axiom-card tech-card reveal reveal-delay-${i % 4 + 1}`}>
-                <span className="mono-sm" style={{ color: 'var(--amber)' }}>{tech.category}</span>
+              <div key={tech.name} className={`prism-card tech-card reveal reveal-delay-${i % 4 + 1}`}>
+                <span className="mono-sm" style={{ color: 'var(--cyan)' }}>{tech.category}</span>
                 <p className="heading-ui" style={{ marginTop: 'var(--sp-xs)', fontSize: '1rem' }}>{tech.name}</p>
                 <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-xs)' }}>{tech.detail}</p>
               </div>

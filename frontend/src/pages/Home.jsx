@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FileText, Hash, AlignLeft, FileStack, Globe, BookOpen, Database, Search, Layers, Shield, Cpu } from "lucide-react";
-import KnowledgeVault from "../components/KnowledgeVault";
+import LogicCore from "../components/LogicCore";
 
 const DOC_TYPES = [
   { Icon: FileText, label: ".PDF", type: "PDF Documents", parser: "PyMuPDF (fitz) Parser", description: "Full page text and layout extraction with section preservation." },
@@ -16,11 +16,11 @@ const PIPELINE_STEPS = [
   { id: "retrieve", Icon: Search, label: "RETRIEVE", title: "Hybrid Search", description: "Parallel BM25 and dense retrieval merged using Reciprocal Rank Fusion." },
   { id: "rerank", Icon: Layers, label: "RERANK", title: "Neural Rerank", description: "A Cross-Encoder model scores query-chunk relationships for factual alignment." },
   { id: "ground", Icon: Shield, label: "GROUND", title: "Prompt Grounding", description: "Context is fitted to the window and injected into strict system guidelines." },
-  { id: "generate", Icon: Cpu, label: "GENERATE", title: "Local Synthesis", description: "Ollama executes the model locally on-device via Apple Silicon." },
+  { id: "generate", Icon: Cpu, label: "GENERATE", title: "Local Synthesis", description: "Local model pipeline executes text generation inside Python on CPU/GPU." },
 ];
 
 export default function Home({ setActivePage }) {
-  const [vaultHovered, setVaultHovered] = useState(false);
+  const [coreHovered, setCoreHovered] = useState(false);
 
   useEffect(() => {
     // Basic Intersection Observer for Scroll Reveals
@@ -48,25 +48,25 @@ export default function Home({ setActivePage }) {
           <div className="hero-grid">
             {/* Left column */}
             <div className="hero-left">
-              <p className="eyebrow reveal">// LOCAL  ·  PRIVATE  ·  INTELLIGENT</p>
+              <p className="eyebrow reveal">// DISPERSED  ·  CONTAINED  ·  SECURE</p>
 
               <h1 className="display-xl hero-title reveal reveal-delay-1">
-                DOCU<span style={{ color: 'var(--amber)' }}>MIND</span>
+                DOCU<span style={{ color: 'var(--violet)' }}>MIND</span>
               </h1>
               <h2 className="display-lg hero-subtitle reveal reveal-delay-2">
-                KNOWLEDGE<br />AT ZERO EXPOSURE
+                KNOWLEDGE<br />DISPERSED PRECISELY
               </h2>
 
               <p className="body-lg hero-body reveal reveal-delay-3" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-lg)' }}>
-                A fully local RAG system that answers questions over your documents
-                without sending a single byte to the cloud. Built on Apple Silicon.
-                Powered by open-weight models.
+                A fully self-contained RAG system that processes your files and 
+                answers questions locally on your CPU/GPU. No external API calls, 
+                no cloud storage leakage, absolute data containment.
               </p>
 
               <div className="hero-chips reveal reveal-delay-4">
-                <span className="chip">◉ 100% Local</span>
+                <span className="chip">◉ 100% Self-Contained</span>
                 <span className="chip">✦ Zero APIs</span>
-                <span className="chip">⬡ MPS Accelerated</span>
+                <span className="chip">⬡ Local Inference</span>
               </div>
 
               <div className="hero-ctas reveal reveal-delay-4">
@@ -80,24 +80,25 @@ export default function Home({ setActivePage }) {
 
               {/* DM Mono build metadata */}
               <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-xl)' }}>
-                v1.7.0  ·  llama3.2:3b  ·  BAAI/bge-base-en-v1.5  ·  ChromaDB
+                v1.8.0  ·  Qwen2.5-0.5B-Instruct  ·  BAAI/bge-base-en-v1.5  ·  ChromaDB
               </p>
             </div>
 
-            {/* Right column — Knowledge Vault */}
+            {/* Right column — Logic Core */}
             <div
               className="hero-right"
-              onMouseEnter={() => setVaultHovered(true)}
-              onMouseLeave={() => setVaultHovered(false)}
+              onMouseEnter={() => setCoreHovered(true)}
+              onMouseLeave={() => setCoreHovered(false)}
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
             >
-              <KnowledgeVault isHovered={vaultHovered} />
+              <LogicCore isHovered={coreHovered} />
             </div>
           </div>
         </div>
       </section>
 
       {/* Section 2 — Document Gallery */}
-      <section className="section" style={{ background: 'linear-gradient(180deg, var(--void) 0%, rgba(245,158,11,0.02) 50%, var(--void) 100%)' }}>
+      <section className="section" style={{ background: 'linear-gradient(180deg, var(--void) 0%, rgba(124,58,237,0.015) 50%, var(--void) 100%)' }}>
         <div className="container">
           <div style={{ marginBottom: 'var(--sp-2xl)' }}>
             <p className="eyebrow reveal">// Supported Formats</p>
@@ -114,13 +115,13 @@ export default function Home({ setActivePage }) {
             {DOC_TYPES.map((doc, i) => (
               <div
                 key={doc.label}
-                className={`axiom-card doc-card reveal reveal-delay-${i % 4 + 1}`}
+                className={`prism-card doc-card reveal reveal-delay-${i % 4 + 1}`}
               >
                 <div className="doc-card-header">
-                  <div className="doc-card-icon">
+                  <div className="doc-card-icon" style={{ color: 'var(--violet)' }}>
                     <doc.Icon size={22} />
                   </div>
-                  <span className="mono-sm" style={{ color: 'var(--amber)' }}>
+                  <span className="mono-sm" style={{ color: 'var(--cyan)' }}>
                     {doc.label}
                   </span>
                 </div>
@@ -152,22 +153,22 @@ export default function Home({ setActivePage }) {
               <div key={step.id} className={`pipeline-step reveal reveal-delay-${i + 1}`}>
                 {/* Step number */}
                 <div className="pipeline-num">
-                  <span className="mono-sm" style={{ color: 'var(--amber)' }}>
+                  <span className="mono-sm" style={{ color: 'var(--violet-soft)' }}>
                     {String(i + 1).padStart(2, '0')}
                   </span>
                 </div>
 
                 {/* Connector line (not after last item) */}
                 {i < PIPELINE_STEPS.length - 1 && (
-                  <div className="pipeline-connector" />
+                  <div className="pipeline-connector" style={{ background: 'var(--border-violet)' }} />
                 )}
 
                 {/* Card */}
-                <div className="axiom-card pipeline-card">
-                  <div className="doc-card-icon" style={{ marginBottom: 'var(--sp-md)' }}>
+                <div className="prism-card pipeline-card">
+                  <div className="doc-card-icon" style={{ marginBottom: 'var(--sp-md)', color: 'var(--violet)' }}>
                     <step.Icon size={20} />
                   </div>
-                  <p className="mono-sm" style={{ color: 'var(--amber)' }}>{step.label}</p>
+                  <p className="mono-sm" style={{ color: 'var(--cyan)' }}>{step.label}</p>
                   <p className="heading-ui" style={{ marginTop: 'var(--sp-xs)', fontSize: '1rem' }}>
                     {step.title}
                   </p>
@@ -189,11 +190,11 @@ export default function Home({ setActivePage }) {
             {[
               { value: '0',           unit: 'External APIs',     label: 'All inference runs on-device.' },
               { value: '100%',        unit: 'Local Processing',  label: 'No data leaves your machine.' },
-              { value: 'MPS',         unit: 'GPU Acceleration',  label: 'Apple M-series Neural Engine.' },
-              { value: 'RAGAS',       unit: 'Evaluated Quality', label: 'Faithfulness + precision metrics.' },
+              { value: 'CPU/GPU',     unit: 'Hardware Fallback', label: 'Runs locally on CPU/CUDA/MPS.' },
+              { value: 'PRISM',       unit: 'Dispersed RAG',     label: 'Isolated search & context extraction.' },
             ].map((m, i) => (
-              <div key={i} className={`axiom-card metrics-card reveal reveal-delay-${i + 1}`}>
-                <p className="display-md" style={{ color: 'var(--amber)' }}>{m.value}</p>
+              <div key={i} className={`prism-card metrics-card reveal reveal-delay-${i + 1}`}>
+                <p className="display-md" style={{ color: 'var(--violet)' }}>{m.value}</p>
                 <p className="mono-base"  style={{ marginTop: 'var(--sp-xs)', color: 'var(--text-primary)' }}>{m.unit}</p>
                 <p className="mono-sm"   style={{ marginTop: 'var(--sp-sm)', color: 'var(--text-muted)' }}>{m.label}</p>
               </div>

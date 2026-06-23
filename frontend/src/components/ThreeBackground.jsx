@@ -1,19 +1,16 @@
+// frontend/src/components/ThreeBackground.jsx
+
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-
-const NODE_COUNT        = 60;
-const CONNECTION_RADIUS = 280;   // max distance for edge creation
-const BOUNDS            = 400;   // ±x,y,z boundary for node drift
-const DRIFT_SPEED       = 0.12;  // base drift multiplier
 
 export default function ThreeBackground() {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    const el     = mountRef.current;
-    const W      = window.innerWidth;
-    const H      = window.innerHeight;
-    const mouse  = { x: 0, y: 0 };
+    const el = mountRef.current;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const mouse = { x: 0, y: 0 };
 
     // ── Renderer ─────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -23,121 +20,102 @@ export default function ThreeBackground() {
     el.appendChild(renderer.domElement);
 
     // ── Scene + Camera ───────────────────────────────────────────────
-    const scene  = new THREE.Scene();
+    const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, W / H, 1, 2000);
-    camera.position.z = 700;
+    camera.position.set(0, 80, 600);
 
-    // ── Nodes ────────────────────────────────────────────────────────
-    // Each node: {position, velocity}
-    const nodes = Array.from({ length: NODE_COUNT }, () => ({
-      position: new THREE.Vector3(
-        (Math.random() - 0.5) * BOUNDS * 2,
-        (Math.random() - 0.5) * BOUNDS * 2,
-        (Math.random() - 0.5) * BOUNDS * 1.2
-      ),
-      velocity: new THREE.Vector3(
-        (Math.random() - 0.5) * DRIFT_SPEED,
-        (Math.random() - 0.5) * DRIFT_SPEED,
-        (Math.random() - 0.5) * DRIFT_SPEED * 0.4
-      ),
-    }));
+    // ── Light Source ─────────────────────────────────────────────────
+    // Subtle ambient lighting matching PRISM palette
+    const ambientLight = new THREE.AmbientLight(0x040409, 0.5);
+    scene.add(ambientLight);
 
-    // Points geometry for nodes
-    const nodePositions = new Float32Array(NODE_COUNT * 3);
-    nodes.forEach((n, i) => {
-      nodePositions[i * 3]     = n.position.x;
-      nodePositions[i * 3 + 1] = n.position.y;
-      nodePositions[i * 3 + 2] = n.position.z;
+    const directionalLight = new THREE.DirectionalLight(0x7c3aed, 1.2); // Violet highlight
+    directionalLight.position.set(0, 300, 100);
+    scene.add(directionalLight);
+
+    // ── Organic Plasma Topology Mesh ──────────────────────────────────
+    const GRID_SIZE = 1400;
+    const SEGMENTS = 40;
+    
+    // Create plane geometry representing the topology mesh
+    const planeGeom = new THREE.PlaneGeometry(GRID_SIZE, GRID_SIZE, SEGMENTS, SEGMENTS);
+    
+    // Keep track of original vertex coordinates to compute displacements
+    const origPositions = planeGeom.attributes.position.array.slice();
+
+    // Material with subtle violet wireframe and translucent navy filling
+    const meshMat = new THREE.MeshBasicMaterial({
+      color: 0x070514, // deep navy surface
+      transparent: true,
+      opacity: 0.75,
+      side: THREE.DoubleSide
     });
 
-    const nodeGeom = new THREE.BufferGeometry();
-    nodeGeom.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
-
-    const nodeMat = new THREE.PointsMaterial({
-      color:        0xf59e0b,   // amber
-      size:         2.5,
-      transparent:  true,
-      opacity:      0.22,
-      sizeAttenuation: true,
+    const wireMat = new THREE.MeshBasicMaterial({
+      color: 0x7c3aed, // Violet lines
+      wireframe: true,
+      transparent: true,
+      opacity: 0.08,
+      side: THREE.DoubleSide
     });
 
-    const nodesMesh = new THREE.Points(nodeGeom, nodeMat);
-    scene.add(nodesMesh);
+    const solidMesh = new THREE.Mesh(planeGeom, meshMat);
+    const wireMesh = new THREE.Mesh(planeGeom, wireMat);
 
-    // ── Edges (lines between nearby nodes) ───────────────────────────
-    // Max possible edges: N*(N-1)/2 = 1770 for 60 nodes
-    // Pre-allocate a fixed buffer and update dynamically
-    const MAX_EDGES = 1200;
-    const edgePositions = new Float32Array(MAX_EDGES * 2 * 3);  // 2 vertices per edge
+    // Group for positioning and tilting the landscape
+    const landscapeGroup = new THREE.Group();
+    landscapeGroup.add(solidMesh);
+    landscapeGroup.add(wireMesh);
 
-    const edgeGeom = new THREE.BufferGeometry();
-    edgeGeom.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
-    edgeGeom.setDrawRange(0, 0);
+    // Rotate and lower the landscape to form the background mesh
+    landscapeGroup.rotation.x = -Math.PI / 2.3; // tilted floor
+    landscapeGroup.rotation.z = Math.PI / 16;  // organic diagonal alignment
+    landscapeGroup.position.y = -260;           // lowered
+    scene.add(landscapeGroup);
 
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.16 });
-
-    const edgesMesh = new THREE.LineSegments(edgeGeom, edgeMat);
-    scene.add(edgesMesh);
-
-    // ── Animation ────────────────────────────────────────────────────
+    // ── Animation Loop ───────────────────────────────────────────────
     let animId;
-    let edgeCount = 0;
+    let clock = new THREE.Clock();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
 
-      // Update node positions
-      nodes.forEach((n, i) => {
-        n.position.addScaledVector(n.velocity, 1);
+      // Deform vertices dynamically to generate organic waves
+      const posAttr = planeGeom.attributes.position;
+      const arr = posAttr.array;
 
-        // Reverse at bounds
-        if (Math.abs(n.position.x) > BOUNDS) n.velocity.x *= -1;
-        if (Math.abs(n.position.y) > BOUNDS) n.velocity.y *= -1;
-        if (Math.abs(n.position.z) > BOUNDS * 0.6) n.velocity.z *= -1;
+      for (let i = 0; i < arr.length; i += 3) {
+        const x = origPositions[i];
+        const y = origPositions[i + 1];
 
-        nodePositions[i * 3]     = n.position.x;
-        nodePositions[i * 3 + 1] = n.position.y;
-        nodePositions[i * 3 + 2] = n.position.z;
-      });
-      nodeGeom.attributes.position.needsUpdate = true;
+        // Layered sine and cosine waves to create a fluid, non-repetitive "plasma" motion
+        const wave1 = Math.sin(x * 0.003 + elapsed * 0.45) * 38;
+        const wave2 = Math.cos(y * 0.0035 + elapsed * 0.38) * 38;
+        const wave3 = Math.sin((x + y) * 0.0018 + elapsed * 0.25) * 18;
 
-      // Rebuild edges
-      edgeCount = 0;
-      for (let a = 0; a < nodes.length && edgeCount < MAX_EDGES; a++) {
-        for (let b = a + 1; b < nodes.length && edgeCount < MAX_EDGES; b++) {
-          const dist = nodes[a].position.distanceTo(nodes[b].position);
-          if (dist < CONNECTION_RADIUS) {
-            const idx = edgeCount * 6;
-            edgePositions[idx]     = nodes[a].position.x;
-            edgePositions[idx + 1] = nodes[a].position.y;
-            edgePositions[idx + 2] = nodes[a].position.z;
-            edgePositions[idx + 3] = nodes[b].position.x;
-            edgePositions[idx + 4] = nodes[b].position.y;
-            edgePositions[idx + 5] = nodes[b].position.z;
-            edgeCount++;
-          }
-        }
+        // Apply displacement to Z coordinate (vertical height)
+        arr[i + 2] = origPositions[i + 2] + wave1 + wave2 + wave3;
       }
-      edgeGeom.attributes.position.needsUpdate = true;
-      edgeGeom.setDrawRange(0, edgeCount * 2);
 
-      // Mouse parallax — subtle camera tilt
-      camera.position.x += (mouse.x * 60 - camera.position.x) * 0.02;
-      camera.position.y += (-mouse.y * 40 - camera.position.y) * 0.02;
-      camera.lookAt(scene.position);
+      posAttr.needsUpdate = true;
+
+      // Subtle parallax response to mouse movements
+      camera.position.x += (mouse.x * 70 - camera.position.x) * 0.015;
+      camera.position.y += ((-mouse.y * 50 + 80) - camera.position.y) * 0.015;
+      camera.lookAt(new THREE.Vector3(0, -60, 0));
 
       renderer.render(scene, camera);
     };
     animate();
 
-    // ── Mouse tracking ───────────────────────────────────────────────
+    // ── Event Listeners ──────────────────────────────────────────────
     const onMouseMove = (e) => {
-      mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = (e.clientY / window.innerHeight) * 2 - 1;
     };
     window.addEventListener('mousemove', onMouseMove);
 
-    // ── Resize ───────────────────────────────────────────────────────
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -160,8 +138,8 @@ export default function ThreeBackground() {
       ref={mountRef}
       style={{
         position: 'fixed',
-        inset:    0,
-        zIndex:   0,
+        inset: 0,
+        zIndex: 0,
         pointerEvents: 'none',
       }}
     />

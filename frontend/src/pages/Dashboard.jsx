@@ -390,10 +390,10 @@ export default function Dashboard() {
             style={{
               width: "100%",
               padding: "10px",
-              background: "rgba(245, 158, 11, 0.1)",
-              border: "1px solid rgba(245, 158, 11, 0.25)",
+              background: "var(--violet-dim)",
+              border: "1px solid var(--violet-border)",
               borderRadius: "6px",
-              color: "var(--amber)",
+              color: "var(--violet-soft)",
               fontFamily: "var(--font-condensed)",
               fontWeight: "600",
               textTransform: "uppercase",
@@ -402,12 +402,12 @@ export default function Dashboard() {
               transition: "all var(--t-fast) var(--ease-out)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--amber)";
-              e.currentTarget.style.color = "#000";
+              e.currentTarget.style.background = "var(--violet)";
+              e.currentTarget.style.color = "var(--text-primary)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(245, 158, 11, 0.1)";
-              e.currentTarget.style.color = "var(--amber)";
+              e.currentTarget.style.background = "var(--violet-dim)";
+              e.currentTarget.style.color = "var(--violet-soft)";
             }}
           >
             New Chat

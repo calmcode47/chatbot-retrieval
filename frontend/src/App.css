@@ -47,7 +47,7 @@
 }
 
 .logo-icon {
-  color: var(--amber);
+  color: var(--violet-soft);
   animation: logo-glow 3s infinite ease-in-out;
 }
 
@@ -87,9 +87,9 @@
 }
 
 .nav-button.active {
-  color: var(--amber);
-  background: var(--amber-dim);
-  border-color: var(--amber-border);
+  color: var(--violet-soft);
+  background: var(--violet-dim);
+  border-color: var(--violet-border);
 }
 
 /* ── Home Page (Hero + Sections) ────────────────────────────────────── */
@@ -174,10 +174,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--amber-dim);
-  border: 1px solid var(--amber-border);
+  background: var(--violet-dim);
+  border: 1px solid var(--violet-border);
   border-radius: var(--r-md);
-  color: var(--amber);
+  color: var(--violet-soft);
 }
 
 /* Pipeline Track section */
@@ -207,7 +207,7 @@
   left: 100%;
   width: var(--sp-md);
   height: 1px;
-  background: linear-gradient(90deg, var(--amber-border), transparent);
+  background: linear-gradient(90deg, var(--violet-border), transparent);
   z-index: 1;
 }
 
@@ -293,8 +293,8 @@
 }
 
 .upload-dropzone:hover {
-  border-color: var(--amber);
-  background: var(--amber-dim);
+  border-color: var(--violet-soft);
+  background: var(--violet-dim);
 }
 
 .upload-icon {
@@ -336,7 +336,7 @@
   font-size: 1.25rem;
   font-family: var(--font-mono);
   font-weight: 500;
-  color: var(--amber);
+  color: var(--violet-soft);
 }
 
 .doc-list-section {
@@ -439,7 +439,7 @@
 }
 
 .placeholder-icon {
-  color: var(--amber);
+  color: var(--violet-soft);
   animation: logo-glow 3s infinite ease-in-out;
 }
 
@@ -478,8 +478,8 @@
 }
 
 .message-bubble.user {
-  background: var(--amber-dim);
-  border: 1px solid var(--amber-border);
+  background: var(--violet-dim);
+  border: 1px solid var(--violet-border);
   color: var(--text-primary);
   border-bottom-right-radius: 2px;
 }
@@ -499,7 +499,7 @@
 
 .spinning-loader {
   animation: spin 1.5s infinite linear;
-  color: var(--amber);
+  color: var(--violet-soft);
 }
 
 .message-footer {
@@ -511,7 +511,7 @@
 }
 
 .condensed-badge {
-  color: var(--amber);
+  color: var(--cyan);
 }
 
 /* Sources Citation Box */
@@ -566,14 +566,14 @@
 }
 
 .source-score {
-  color: var(--amber);
+  color: var(--cyan);
 }
 
 .source-excerpt {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
-  border-left: 2px solid var(--border-amber);
+  border-left: 2px solid var(--violet-border);
   padding-left: var(--sp-sm);
   text-align: left;
 }
@@ -613,7 +613,7 @@
 }
 
 .chat-submit-button {
-  background: var(--amber);
+  background: var(--violet);
   border: none;
   width: 40px;
   height: 40px;
@@ -621,13 +621,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #000;
+  color: #fff;
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-out);
 }
 
 .chat-submit-button:hover:not(:disabled) {
-  background: var(--amber-bright);
+  background: var(--violet-bright);
   transform: scale(1.03);
 }
 

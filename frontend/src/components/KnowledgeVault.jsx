@@ -25,42 +25,42 @@ export default function KnowledgeVault({ isHovered = false }) {
     // ── Scene + Camera ───────────────────────────────────────────────
     const scene  = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-    camera.position.set(0, 0, 5);
+    camera.position.set(0, 0, 5.2);
 
     // ── Lighting ─────────────────────────────────────────────────────
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     scene.add(ambientLight);
 
-    const pointLight = new THREE.PointLight(0xf59e0b, 2, 10);
+    const pointLight = new THREE.PointLight(0x7c3aed, 2.5, 10); // PRISM Violet light
     pointLight.position.set(2, 2, 3);
     scene.add(pointLight);
 
     // ── Outer Icosahedron Wireframe ───────────────────────────────────
-    const icoGeom = new THREE.IcosahedronGeometry(2.2, 1);
+    const icoGeom = new THREE.IcosahedronGeometry(2.1, 1);
     const icoMat  = new THREE.MeshBasicMaterial({
-      color:       0xf59e0b,
+      color:       0x7c3aed, // Violet wireframe
       wireframe:   true,
       transparent: true,
-      opacity:     0.28,
+      opacity:     0.22,
     });
     const icosahedron = new THREE.Mesh(icoGeom, icoMat);
     scene.add(icosahedron);
 
     // Second, slightly larger shell at lower opacity
     const icoOuter = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(2.6, 1),
-      new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe: true, transparent: true, opacity: 0.08 })
+      new THREE.IcosahedronGeometry(2.5, 1),
+      new THREE.MeshBasicMaterial({ color: 0x7c3aed, wireframe: true, transparent: true, opacity: 0.06 })
     );
     scene.add(icoOuter);
 
     // ── Inner Core ───────────────────────────────────────────────────
     const coreGeom = new THREE.SphereGeometry(0.38, 24, 24);
     const coreMat  = new THREE.MeshStandardMaterial({
-      color:     0xf97316,
-      emissive:  0xf59e0b,
-      emissiveIntensity: 0.6,
-      roughness: 0.3,
-      metalness: 0.7,
+      color:     0x0ea5e9, // Cyan core
+      emissive:  0x7c3aed, // Violet emissive glow
+      emissiveIntensity: 0.5,
+      roughness: 0.2,
+      metalness: 0.8,
     });
     const core = new THREE.Mesh(coreGeom, coreMat);
     scene.add(core);
@@ -72,22 +72,22 @@ export default function KnowledgeVault({ isHovered = false }) {
     const orbitLines  = [];
 
     const nodeMat = new THREE.MeshStandardMaterial({
-      color:     0xfbbf24,
-      emissive:  0xf59e0b,
-      emissiveIntensity: 0.4,
+      color:     0xa78bfa, // Violet-soft nodes
+      emissive:  0x7c3aed,
+      emissiveIntensity: 0.35,
       roughness: 0.4,
       metalness: 0.6,
     });
 
     const lineMat = new THREE.LineBasicMaterial({
-      color:       0xf59e0b,
+      color:       0x7c3aed, // Violet filaments
       transparent: true,
-      opacity:     0.18,
+      opacity:     0.14,
     });
 
     for (let i = 0; i < ORBIT_COUNT; i++) {
       // Random point on a sphere of radius 1.2–1.6
-      const radius    = 1.2 + Math.random() * 0.4;
+      const radius    = 1.1 + Math.random() * 0.4;
       const theta     = Math.random() * Math.PI * 2;
       const phi       = Math.acos(2 * Math.random() - 1);
       const nodeSize  = 0.045 + Math.random() * 0.04;
@@ -106,7 +106,7 @@ export default function KnowledgeVault({ isHovered = false }) {
         radius,
         theta,
         phi,
-        orbitSpeed:  0.004 + Math.random() * 0.006,
+        orbitSpeed:  0.003 + Math.random() * 0.005,
         orbitAxis:   new THREE.Vector3(
           Math.random() - 0.5,
           Math.random() - 0.5,
@@ -140,13 +140,13 @@ export default function KnowledgeVault({ isHovered = false }) {
       const speedMult = hoveredRef.current ? 2.2 : 1.0;
 
       // Rotate outer shells
-      icosahedron.rotateOnAxis(rotAxis, 0.003 * speedMult);
-      icoOuter.rotateOnAxis(new THREE.Vector3(-0.1, 0.8, 0.3).normalize(), 0.002 * speedMult);
+      icosahedron.rotateOnAxis(rotAxis, 0.002 * speedMult);
+      icoOuter.rotateOnAxis(new THREE.Vector3(-0.1, 0.8, 0.3).normalize(), 0.0015 * speedMult);
 
       // Pulse core
       const pulse = 1 + Math.sin(time * 2.5) * 0.06;
       core.scale.setScalar(pulse);
-      coreMat.emissiveIntensity = 0.6 + Math.sin(time * 2.5) * 0.2;
+      coreMat.emissiveIntensity = 0.5 + Math.sin(time * 2.5) * 0.15;
 
       // Orbit nodes
       orbitNodes.forEach((node) => {
@@ -167,8 +167,8 @@ export default function KnowledgeVault({ isHovered = false }) {
 
       // Pulse wireframe opacity on hover
       icoMat.opacity = hoveredRef.current
-        ? 0.45 + Math.sin(time * 4) * 0.1
-        : 0.28;
+        ? 0.38 + Math.sin(time * 4) * 0.08
+        : 0.22;
 
       renderer.render(scene, camera);
     };
@@ -188,7 +188,7 @@ export default function KnowledgeVault({ isHovered = false }) {
         width:  440,
         height: 440,
         cursor: 'crosshair',
-        filter: 'drop-shadow(0 0 40px rgba(245, 158, 11, 0.18))',
+        filter: 'drop-shadow(0 0 40px rgba(124, 58, 237, 0.12))',
       }}
     />
   );
