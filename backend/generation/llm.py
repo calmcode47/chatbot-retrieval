@@ -76,7 +76,11 @@ def get_llm(
             from langchain_community.llms import HuggingFacePipeline
             import torch
 
-            model_id = model or os.getenv("LOCAL_SLM_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
+            # If model parameter is an Ollama model (has colon) or not a HF repo ID, ignore it
+            if model and ":" not in model and "/" in model:
+                model_id = model
+            else:
+                model_id = os.getenv("LOCAL_SLM_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")
             
             # If fine-tuned model path exists, prioritize it
             if os.path.exists("./models/fine-tuned-slm"):
