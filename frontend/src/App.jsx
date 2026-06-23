@@ -4,12 +4,15 @@ import PlasmaMesh from "./components/PlasmaMesh";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
+import { useScrollReveal } from './hooks/useScrollReveal';
 import "./App.css";
 
 function App() {
   const [activePage, setActivePage] = useState(
     () => localStorage.getItem("documind_active_page") || "home"
   );
+
+  useScrollReveal();
 
   const handleSetActivePage = (page) => {
     setActivePage(page);
@@ -19,13 +22,13 @@ function App() {
   const renderPage = () => {
     switch (activePage) {
       case "home":
-        return <Home setActivePage={handleSetActivePage} />;
+        return <Home setPage={handleSetActivePage} />;
       case "dashboard":
         return <Dashboard />;
       case "about":
         return <About />;
       default:
-        return <Home setActivePage={handleSetActivePage} />;
+        return <Home setPage={handleSetActivePage} />;
     }
   };
 
@@ -35,7 +38,7 @@ function App() {
       <PlasmaMesh />
 
       {/* Navigation Header */}
-      <Navbar activePage={activePage} setActivePage={handleSetActivePage} />
+      <Navbar currentPage={activePage} onNavigate={handleSetActivePage} />
 
       {/* Main Pages */}
       <div className="main-content-layout">

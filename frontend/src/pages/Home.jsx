@@ -1,138 +1,113 @@
-import React, { useState, useEffect } from "react";
-import { FileText, Hash, AlignLeft, FileStack, Globe, BookOpen, Database, Search, Layers, Shield, Cpu } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Search,
+  Layers,
+  SlidersHorizontal,
+  Cpu,
+  MessageSquare,
+  Zap,
+  FileText,
+  Scissors,
+  Braces,
+  Sparkles
+} from "lucide-react";
 import LogicCore from "../components/LogicCore";
 
-const DOC_TYPES = [
-  { Icon: FileText, label: ".PDF", type: "PDF Documents", parser: "PyMuPDF (fitz) Parser", description: "Full page text and layout extraction with section preservation." },
-  { Icon: Hash, label: ".MD", type: "Markdown Files", parser: "Unstructured MD Compiler", description: "Heading-aware parsing with markdown syntax and frontmatter isolation." },
-  { Icon: AlignLeft, label: ".TXT", type: "Plain Text", parser: "UTF-8 Stream Reader", description: "Clean text reader with paragraph detection and formatting cleanup." },
-  { Icon: FileStack, label: ".DOCX", type: "Word Documents", parser: "Unstructured Docx Parser", description: "Style-preserving text extraction for standard docx document packages." },
-  { Icon: Globe, label: "URL", type: "Web Pages", parser: "WebBaseLoader Scraper", description: "Web scrape with sanitization and HTML boilerplate tag stripping." },
-  { Icon: BookOpen, label: "Research", type: "Academic Papers", parser: "PyMuPDF + spaCy NER", description: "Scientific papers with metadata, citations, and entity extraction." },
+const FEATURES = [
+  { title:'Hybrid Retrieval',  description:'BM25 keyword search fused with BGE dense embeddings using Reciprocal Rank Fusion — captures both exact matches and semantic similarity.', tech:'BM25Okapi · BGE-base · RRF k=60', Icon: Search },
+  { title:'Hierarchical Chunks', description:'Parent-child chunking: 128-token children for precise embedding, 512-token parents returned to the LLM for rich contextual answers.', tech:'RecursiveTextSplitter · PyMuPDF', Icon: Layers },
+  { title:'Cross-Encoder Reranking', description:'After retrieval, BGE-Reranker-Base jointly scores every (query, chunk) pair to re-order candidates by true relevance.', tech:'BAAI/bge-reranker-base', Icon: SlidersHorizontal },
+  { title:'On-Device LLM',    description:'Qwen2.5-0.5B runs directly inside the Python process. No Ollama, no API keys, no external calls. The model loads once and stays resident.', tech:'Qwen2.5-0.5B · HuggingFace transformers', Icon: Cpu },
+  { title:'Session Memory',   description:'Conversation history persists in SQLite across page refreshes. Sessions survive container restarts via mounted volume.', tech:'SQLite · session_store.py', Icon: MessageSquare },
+  { title:'Embedding Cache',  description:'Disk-based cache skips recomputation for previously embedded text. Critical for fast re-ingestion during ablation studies.', tech:'diskcache · sha256 keying', Icon: Zap },
 ];
 
-const PIPELINE_STEPS = [
-  { id: "ingest", Icon: Database, label: "INGEST", title: "Ingestion Core", description: "Format loaders parse, split, and embed documents into ChromaDB." },
-  { id: "retrieve", Icon: Search, label: "RETRIEVE", title: "Hybrid Search", description: "Parallel BM25 and dense retrieval merged using Reciprocal Rank Fusion." },
-  { id: "rerank", Icon: Layers, label: "RERANK", title: "Neural Rerank", description: "A Cross-Encoder model scores query-chunk relationships for factual alignment." },
-  { id: "ground", Icon: Shield, label: "GROUND", title: "Prompt Grounding", description: "Context is fitted to the window and injected into strict system guidelines." },
-  { id: "generate", Icon: Cpu, label: "GENERATE", title: "Local Synthesis", description: "Local model pipeline executes text generation inside Python on CPU/GPU." },
+const PIPELINE = [
+  { title:'Parse',    desc:'PyMuPDF, TextLoader, and WebLoader extract raw text preserving structure.', Icon: FileText },
+  { title:'Chunk',    desc:'Recursive splitter creates 512-token parent and 128-token child hierarchies.', Icon: Scissors },
+  { title:'Embed',    desc:'BGE-base-en-v1.5 converts each child chunk to a 768-dim normalized vector.', Icon: Braces },
+  { title:'Retrieve', desc:'Hybrid BM25+dense search with RRF merge surfaces the most relevant parents.', Icon: Search },
+  { title:'Generate', desc:'Qwen2.5-0.5B produces a grounded answer strictly from retrieved context.', Icon: Sparkles },
 ];
 
-export default function Home({ setActivePage }) {
+export default function Home({ setPage }) {
   const [coreHovered, setCoreHovered] = useState(false);
-
-  useEffect(() => {
-    // Basic Intersection Observer for Scroll Reveals
-    const reveals = document.querySelectorAll(".reveal");
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-    reveals.forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div className="home-container" style={{ padding: 0 }}>
       {/* Section 1 — Hero */}
-      <section className="section hero-section" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+      <section style={{ minHeight:'100vh', display:'flex', alignItems:'center' }}>
         <div className="container">
           <div className="hero-grid">
-            {/* Left column */}
+
+            {/* Left */}
             <div className="hero-left">
-              <p className="eyebrow reveal">// DISPERSED  ·  CONTAINED  ·  SECURE</p>
+              <p className="eyebrow reveal">// PRIVATE  ·  LOCAL  ·  INTELLIGENT</p>
 
               <h1 className="display-xl hero-title reveal reveal-delay-1">
-                DOCU<span style={{ color: 'var(--violet)' }}>MIND</span>
+                KNOW<span style={{ color:'var(--violet-soft)' }}>LEDGE</span><br />
+                THAT STAYS<br />
+                <span style={{ color:'var(--violet)' }}>WITH YOU</span>
               </h1>
-              <h2 className="display-lg hero-subtitle reveal reveal-delay-2">
-                KNOWLEDGE<br />DISPERSED PRECISELY
-              </h2>
 
-              <p className="body-lg hero-body reveal reveal-delay-3" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-lg)' }}>
-                A fully self-contained RAG system that processes your files and 
-                answers questions locally on your CPU/GPU. No external API calls, 
-                no cloud storage leakage, absolute data containment.
+              <p className="body-lg reveal reveal-delay-2"
+                 style={{ color:'var(--text-secondary)', maxWidth:440, marginTop:'var(--sp-lg)' }}>
+                Ask questions across your documents. Runs entirely offline on Apple Silicon.
+                No data leaves your machine — ever.
               </p>
 
-              <div className="hero-chips reveal reveal-delay-4">
-                <span className="chip">◉ 100% Self-Contained</span>
-                <span className="chip">✦ Zero APIs</span>
-                <span className="chip">⬡ Local Inference</span>
+              <div className="hero-chips reveal reveal-delay-3">
+                <span className="chip">◈ Zero Cloud APIs</span>
+                <span className="chip">⬡ Qwen2.5 · BGE · ChromaDB</span>
+                <span className="chip">✦ MPS Accelerated</span>
               </div>
 
               <div className="hero-ctas reveal reveal-delay-4">
-                <button className="btn-primary" onClick={() => setActivePage('dashboard')}>
-                  Enter Dashboard
+                <button className="btn-primary" onClick={() => setPage('dashboard')}>
+                  Open Dashboard
                 </button>
-                <button className="btn-ghost" onClick={() => setActivePage('about')}>
-                  View Architecture
+                <button className="btn-ghost"
+                        onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior:'smooth' })}>
+                  How it Works
                 </button>
               </div>
 
-              {/* DM Mono build metadata */}
-              <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-xl)' }}>
-                v1.8.0  ·  Qwen2.5-0.5B-Instruct  ·  BAAI/bge-base-en-v1.5  ·  ChromaDB
+              <p className="mono-sm reveal reveal-delay-4"
+                 style={{ color:'var(--text-muted)', marginTop:'var(--sp-xl)' }}>
+                v1.7.0  ·  Qwen2.5-0.5B  ·  BAAI/bge-base-en-v1.5  ·  Railway
               </p>
             </div>
 
-            {/* Right column — Logic Core */}
-            <div
-              className="hero-right"
-              onMouseEnter={() => setCoreHovered(true)}
-              onMouseLeave={() => setCoreHovered(false)}
-              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-            >
+            {/* Right — Logic Core */}
+            <div className="hero-right"
+                 onMouseEnter={() => setCoreHovered(true)}
+                 onMouseLeave={() => setCoreHovered(false)}>
               <LogicCore isHovered={coreHovered} />
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Section 2 — Document Gallery */}
-      <section className="section" style={{ background: 'linear-gradient(180deg, var(--void) 0%, rgba(124,58,237,0.015) 50%, var(--void) 100%)' }}>
+      {/* Section 2 — How it Works */}
+      <section id="how-it-works" className="section">
         <div className="container">
-          <div style={{ marginBottom: 'var(--sp-2xl)' }}>
-            <p className="eyebrow reveal">// Supported Formats</p>
-            <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)' }}>
-              EVERY FORMAT.<br />
-              <span style={{ color: 'var(--text-secondary)' }}>FULLY PARSED.</span>
-            </h2>
-            <p className="body-base reveal reveal-delay-2" style={{ color: 'var(--text-secondary)', maxWidth: 480, marginTop: 'var(--sp-md)' }}>
-              DocuMind extracts content from your documents using structure-aware parsers, not raw text dumps.
-            </p>
-          </div>
-
-          <div className="doc-gallery-grid">
-            {DOC_TYPES.map((doc, i) => (
-              <div
-                key={doc.label}
-                className={`prism-card doc-card reveal reveal-delay-${i % 4 + 1}`}
-              >
-                <div className="doc-card-header">
-                  <div className="doc-card-icon" style={{ color: 'var(--violet)' }}>
-                    <doc.Icon size={22} />
-                  </div>
-                  <span className="mono-sm" style={{ color: 'var(--cyan)' }}>
-                    {doc.label}
-                  </span>
+          <p className="eyebrow reveal">// Core Capabilities</p>
+          <h2 className="display-md reveal reveal-delay-1" style={{ marginTop:'var(--sp-md)', marginBottom:'var(--sp-2xl)' }}>
+            BUILT DIFFERENT
+          </h2>
+          <div className="features-grid">
+            {FEATURES.map((f, i) => (
+              <div key={f.title} className={`prism-card reveal reveal-delay-${i + 1}`}>
+                <div className="icon-box" style={{ marginBottom:'var(--sp-lg)' }}>
+                  <f.Icon size={20} />
                 </div>
-                <p className="heading-ui" style={{ marginTop: 'var(--sp-md)', fontSize: '1.1rem' }}>
-                  {doc.type}
+                <p className="heading-ui" style={{ fontSize:'1rem' }}>{f.title}</p>
+                <p className="body-base" style={{ color:'var(--text-secondary)', marginTop:'var(--sp-sm)', fontSize:'0.875rem' }}>
+                  {f.description}
                 </p>
-                <p className="body-base" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-sm)', fontSize: '0.875rem' }}>
-                  {doc.description}
-                </p>
-                <p className="mono-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--sp-lg)' }}>
-                  {doc.parser}
+                <p className="mono-sm" style={{ color:'var(--text-muted)', marginTop:'var(--sp-lg)' }}>
+                  {f.tech}
                 </p>
               </div>
             ))}
@@ -141,39 +116,25 @@ export default function Home({ setActivePage }) {
       </section>
 
       {/* Section 3 — Pipeline */}
-      <section className="section pipeline-section">
+      <section className="section" style={{ background:'linear-gradient(180deg,var(--void) 0%,rgba(124,58,237,0.025) 50%,var(--void) 100%)' }}>
         <div className="container">
-          <p className="eyebrow reveal">// Under the hood</p>
-          <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)', marginBottom: 'var(--sp-2xl)' }}>
-            THE PIPELINE
+          <p className="eyebrow reveal">// Processing Pipeline</p>
+          <h2 className="display-md reveal reveal-delay-1" style={{ marginTop:'var(--sp-md)', marginBottom:'var(--sp-2xl)' }}>
+            FROM UPLOAD TO ANSWER
           </h2>
-
-          <div className="pipeline-track">
-            {PIPELINE_STEPS.map((step, i) => (
-              <div key={step.id} className={`pipeline-step reveal reveal-delay-${i + 1}`}>
-                {/* Step number */}
-                <div className="pipeline-num">
-                  <span className="mono-sm" style={{ color: 'var(--violet-soft)' }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                </div>
-
-                {/* Connector line (not after last item) */}
-                {i < PIPELINE_STEPS.length - 1 && (
-                  <div className="pipeline-connector" style={{ background: 'var(--border-violet)' }} />
-                )}
-
-                {/* Card */}
-                <div className="prism-card pipeline-card">
-                  <div className="doc-card-icon" style={{ marginBottom: 'var(--sp-md)', color: 'var(--violet)' }}>
-                    <step.Icon size={20} />
+          <div className="pipeline-grid">
+            {PIPELINE.map((step, i) => (
+              <div key={step.title} className={`reveal reveal-delay-${i+1}`}>
+                <p className="mono-sm" style={{ color:'var(--violet-soft)', marginBottom:'var(--sp-sm)' }}>
+                  {String(i+1).padStart(2,'0')}
+                </p>
+                <div className="prism-card pipeline-step-card">
+                  <div className="icon-box" style={{ marginBottom:'var(--sp-md)' }}>
+                    <step.Icon size={18} />
                   </div>
-                  <p className="mono-sm" style={{ color: 'var(--cyan)' }}>{step.label}</p>
-                  <p className="heading-ui" style={{ marginTop: 'var(--sp-xs)', fontSize: '1rem' }}>
-                    {step.title}
-                  </p>
-                  <p className="body-base" style={{ color: 'var(--text-secondary)', marginTop: 'var(--sp-sm)', fontSize: '0.85rem' }}>
-                    {step.description}
+                  <p className="heading-ui" style={{ fontSize:'0.95rem' }}>{step.title}</p>
+                  <p style={{ color:'var(--text-secondary)', fontSize:'0.83rem', marginTop:'var(--sp-sm)', lineHeight:1.6 }}>
+                    {step.desc}
                   </p>
                 </div>
               </div>
@@ -183,39 +144,37 @@ export default function Home({ setActivePage }) {
       </section>
 
       {/* Section 4 — Metrics */}
-      <section className="section" style={{ paddingTop: 'var(--sp-2xl)', paddingBottom: 'var(--sp-2xl)' }}>
+      <section className="section">
         <div className="container">
-          <div className="divider" style={{ marginBottom: 'var(--sp-2xl)' }} />
+          <div className="divider" style={{ marginBottom:'var(--sp-2xl)' }} />
           <div className="metrics-grid">
             {[
-              { value: '0',           unit: 'External APIs',     label: 'All inference runs on-device.' },
-              { value: '100%',        unit: 'Local Processing',  label: 'No data leaves your machine.' },
-              { value: 'CPU/GPU',     unit: 'Hardware Fallback', label: 'Runs locally on CPU/CUDA/MPS.' },
-              { value: 'PRISM',       unit: 'Dispersed RAG',     label: 'Isolated search & context extraction.' },
+              { value:'0',      label:'External API Calls',  note:'All inference on-device.' },
+              { value:'768',    label:'Embedding Dimensions', note:'BAAI/bge-base-en-v1.5' },
+              { value:'0.5B',   label:'Model Parameters',    note:'Runs on 512 MB RAM.' },
+              { value:'RAGAS',  label:'Evaluated',           note:'Faithfulness · Recall · Precision' },
             ].map((m, i) => (
-              <div key={i} className={`prism-card metrics-card reveal reveal-delay-${i + 1}`}>
-                <p className="display-md" style={{ color: 'var(--violet)' }}>{m.value}</p>
-                <p className="mono-base"  style={{ marginTop: 'var(--sp-xs)', color: 'var(--text-primary)' }}>{m.unit}</p>
-                <p className="mono-sm"   style={{ marginTop: 'var(--sp-sm)', color: 'var(--text-muted)' }}>{m.label}</p>
+              <div key={i} className={`prism-card reveal reveal-delay-${i+1}`} style={{ textAlign:'center' }}>
+                <p className="display-md" style={{ color:'var(--violet-soft)' }}>{m.value}</p>
+                <p className="mono-base"  style={{ marginTop:'var(--sp-xs)' }}>{m.label}</p>
+                <p className="mono-sm"    style={{ color:'var(--text-muted)', marginTop:'var(--sp-sm)' }}>{m.note}</p>
               </div>
             ))}
           </div>
-          <div className="divider" style={{ marginTop: 'var(--sp-2xl)' }} />
+          <div className="divider" style={{ marginTop:'var(--sp-2xl)' }} />
         </div>
       </section>
 
       {/* Section 5 — CTA */}
-      <section className="section" style={{ textAlign: 'center', minHeight: '40vh', display: 'flex', alignItems: 'center' }}>
+      <section className="section" style={{ textAlign:'center', minHeight:'36vh', display:'flex', alignItems:'center' }}>
         <div className="container">
-          <p className="eyebrow reveal">// Ready to use</p>
-          <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop: 'var(--sp-md)', marginBottom: 'var(--sp-lg)' }}>
-            UPLOAD. ASK. GET ANSWERS.
+          <p className="eyebrow reveal">// Start now</p>
+          <h2 className="display-lg reveal reveal-delay-1" style={{ marginTop:'var(--sp-md)', marginBottom:'var(--sp-lg)' }}>
+            UPLOAD A DOCUMENT.<br />
+            <span style={{ color:'var(--text-secondary)' }}>ASK ANYTHING.</span>
           </h2>
-          <p className="body-lg reveal reveal-delay-2" style={{ color: 'var(--text-secondary)', maxWidth: 520, margin: '0 auto var(--sp-xl)' }}>
-            Drop in your documents and start asking questions. No setup beyond what you've already built.
-          </p>
-          <div className="reveal reveal-delay-3" style={{ display: 'flex', gap: 'var(--sp-md)', justifyContent: 'center' }}>
-            <button className="btn-primary" onClick={() => setActivePage('dashboard')}>
+          <div className="reveal reveal-delay-2">
+            <button className="btn-primary" onClick={() => setPage('dashboard')} style={{ fontSize:'1.1rem', padding:'14px 36px' }}>
               Open Dashboard
             </button>
           </div>
