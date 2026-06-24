@@ -11,6 +11,8 @@
 
 🔗 **Live Demo:** [https://documind-frontend-production-15cf.up.railway.app](https://documind-frontend-production-15cf.up.railway.app)
 
+> *Last updated: 24.06.2026*
+
 ---
 
 ## ✨ Features
@@ -22,6 +24,9 @@
 | **Cross-Encoder Reranking** | `bge-reranker-base` re-scores retrieved chunks for precision (disabled on Railway to save RAM) |
 | **Auto-Targeting** | Detects file-specific queries and applies metadata filters automatically |
 | **Multi-LLM Support** | Groq (cloud, free tier) → Ollama (local) → HuggingFace SLM fallback |
+| **Self-Contained SLM** | `Qwen/Qwen2.5-0.5B-Instruct` runs fully inside the backend process — no internet required |
+| **Lazy Model Loading** | Custom `LazyChatHuggingFace` wrapper defers model load until first query, preventing startup OOM |
+| **Fine-Tuning Pipeline** | PyTorch training loop + ChatML dataset to fine-tune the local SLM in the terminal |
 | **Conversational Memory** | Server-side session store (SQLite) for multi-turn chat history |
 | **Live Status Indicator** | Navbar badge polls `/api/v1/health` every 15 s — real-time API status |
 | **Fully Dockerised** | One-command spin-up with `docker compose up --build` |
@@ -32,14 +37,14 @@
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18, Vite, Three.js, vanilla CSS |
+| **Frontend** | React 18, Vite, Three.js, Lucide React, Vanilla CSS (Nordic Ice theme) |
 | **Backend** | FastAPI, LangChain, Pydantic v2 |
 | **Vector Store** | ChromaDB (cosine similarity, HNSW) |
 | **Embeddings** | `BAAI/bge-small-en-v1.5` on Railway · `BAAI/bge-base-en-v1.5` locally |
 | **Reranker** | `BAAI/bge-reranker-base` (local only) |
 | **LLM (cloud)** | Groq — `llama-3.1-8b-instant` (free API key) |
 | **LLM (local)** | Ollama — `llama3.2:3b` |
-| **LLM (fallback)** | `Qwen/Qwen2.5-0.5B-Instruct` via HuggingFace |
+| **LLM (fallback)** | `Qwen/Qwen2.5-0.5B-Instruct` via HuggingFace (lazy-loaded, runs offline) |
 
 ---
 
@@ -52,19 +57,23 @@
 │   ├── configs/         # Pydantic settings + config.yaml
 │   ├── ingestion/       # Document loaders, chunkers, embedding cache
 │   ├── retrieval/       # Hybrid retriever, vector store wrapper, rerankers
-│   ├── generation/      # LLM init (Groq / Ollama / HuggingFace)
+│   ├── generation/      # LLM init (Groq / Ollama / LazyChatHuggingFace)
 │   ├── pipeline/        # Conversational RAG chain + context window manager
 │   ├── evaluation/      # Ragas runner + synthetic dataset generator
-│   ├── scripts/         # Ingestion helpers, ablation studies, benchmarks
+│   ├── scripts/         # train_slm.py (fine-tune), ablation studies, benchmarks
 │   ├── tests/           # pytest suite
-│   ├── data/            # ChromaDB, SQLite caches, raw docs  (git-ignored)
-│   └── models/          # Local model weights                 (git-ignored)
+│   ├── data/            # ChromaDB, SQLite caches, train_dataset.json (git-ignored)
+│   └── models/          # Local weights / fine-tuned checkpoints  (git-ignored)
 │
 ├── frontend/
 │   ├── src/             # React SPA — Home, Dashboard, About + components
+│   │   ├── Home.jsx     # Hero grid, 3D dome gallery, pipeline flowchart
+│   │   ├── Dashboard.jsx# Document sidebar + conversational chat viewport
+│   │   ├── Navbar.jsx   # Navigation + live API status badge
+│   │   └── ThreeBackground.jsx  # Animated cyber-grid + particle system
 │   ├── public/          # Static icons
 │   ├── Dockerfile       # Multi-stage build → Nginx serving
-│   ├── nginx.conf       # Reverse proxy config (50MB upload limit)
+│   ├── nginx.conf       # Reverse proxy config (50 MB upload limit)
 │   ├── entrypoint.sh    # Injects BACKEND_URL into nginx.conf at runtime
 │   └── vite.config.js   # Dev proxy (Vite dev server only)
 │
@@ -128,7 +137,7 @@ The backend checks env vars in this priority order:
 ```
 GROQ_API_KEY set?  →  use Groq  (fastest, free, cloud)
 USE_OLLAMA=true?   →  use Ollama (local, no internet)
-otherwise          →  use Qwen2.5-0.5B via HuggingFace (fallback, slow)
+otherwise          →  use Qwen2.5-0.5B via HuggingFace (lazy-loaded, fully offline)
 ```
 
 ### Using Groq (free cloud API — recommended for Railway)
@@ -149,6 +158,35 @@ OLLAMA_BASE_URL=http://localhost:11434   # or http://host.docker.internal:11434 
 OLLAMA_MODEL=llama3.2:3b
 USE_OLLAMA=true
 ```
+
+### Using HuggingFace SLM (fully offline fallback)
+
+No configuration needed — activates automatically when neither `GROQ_API_KEY` nor `USE_OLLAMA` is set. The `LazyChatHuggingFace` wrapper loads `Qwen/Qwen2.5-0.5B-Instruct` on the first query with automatic CPU/CUDA/MPS device detection, preventing startup OOM crashes.
+
+---
+
+## 🧠 Fine-Tuning the Local SLM
+
+Train or fine-tune the local Qwen2.5 model on your own instruction data:
+
+```bash
+# 1. Edit the training dataset (ChatML format)
+nano backend/data/train_dataset.json
+
+# 2. Run the fine-tuning script (auto-detects MPS / CUDA / CPU)
+cd backend && python3 scripts/train_slm.py
+
+# Checkpoint saved to:
+#   ./models/fine-tuned-slm/
+```
+
+**Verified training results (Apple M-series MPS GPU):**
+
+| Epoch | Avg. Loss |
+|-------|-----------|
+| 1/3 | 2.9650 |
+| 2/3 | 0.5898 |
+| 3/3 | 0.1492 |
 
 ---
 
@@ -185,6 +223,18 @@ DocuMind API ready. All components initialized.
 | `PORT` | `8501` | Port Nginx listens on |
 
 > ⚠️ Use the **public HTTPS URL** (not `http://documind:8080`). Railway's internal DNS can cause Nginx to cache stale IPs after backend redeploys, leading to 502/504 errors. The public URL routes through Railway's stable edge load balancer and avoids this problem.
+
+---
+
+## 🎨 Frontend — Nordic Ice Design System
+
+The React SPA uses a cold, high-contrast dark theme with Three.js-powered interactive backgrounds:
+
+- **Theme**: Nordic Ice — pitch-black slate (`#030712`) + icy teal (`#2dd4bf`) + frosted cobalt (`#3b82f6`)
+- **Glassmorphism**: Translucent cards with `backdrop-filter: blur(12px)`
+- **3D Dome Gallery**: 18 orbiting document meshes (PDF/MD/TXT) with mouse-parallax tilt and connection filaments
+- **Cyber Grid Background**: Animated wireframe floor with rolling sine-wave vertex displacement + 100 drifting particles
+- **Live Status Badge**: Polls `/api/v1/health` every 15 s and shows CONNECTING / ONLINE / OFFLINE states
 
 ---
 
@@ -239,6 +289,7 @@ Target metrics:
 - **No persistence across Railway redeploys** — ChromaDB data is ephemeral on Railway's free tier. You'll need to re-upload documents after each backend restart. Add a Railway Volume for persistence.
 - **Cold start latency** — The embedding model (`bge-small`) is loaded lazily on the first upload/query (~4 s on Railway free tier).
 - **Groq rate limits** — Free tier: 14,400 req/day, 30 req/min. Use `llama-3.1-8b-instant` for best throughput.
+- **SLM quality** — The HuggingFace fallback (`Qwen2.5-0.5B`) is a small model; responses are best when context is directly retrieved from documents. Fine-tune with `train_slm.py` for domain-specific accuracy.
 
 ---
 
