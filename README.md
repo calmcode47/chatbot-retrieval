@@ -153,6 +153,11 @@ GROQ_MODEL=llama-3.1-8b-instant   # recommended active model
 ```
 
 ### Using Ollama (local)
+
+**Hardware Requirements (for `llama3.2:3b`):**
+- **System RAM:** 4 GB minimum (8 GB recommended)
+- **GPU VRAM:** ~2.5 GB - 3 GB to run entirely on GPU
+
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434   # or http://host.docker.internal:11434 in Docker
 OLLAMA_MODEL=llama3.2:3b
