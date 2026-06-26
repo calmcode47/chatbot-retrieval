@@ -27,6 +27,7 @@ backend/data/raw/*
 backend/data/document_registry.json
 backend/data/embedding_cache/
 backend/evaluation/ragas_results.json
+backend/data/sessions.db*
 
 # OS files
 .DS_Store
